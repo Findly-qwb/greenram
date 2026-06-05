@@ -1,5 +1,6 @@
 import AppKit
 import MacAotoKillCore
+import UniformTypeIdentifiers
 
 final class StatusMenuController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -165,12 +166,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         refreshSnapshot(performAutomaticRelease: false)
         menu.removeAllItems()
 
-        addDisabledItem("\(localizer.t("menu.thresholdStatus")): \(thresholdEvaluation.isExceeded ? localizer.t("status.exceeded") : localizer.t("status.withinLimits"))")
-        addDisabledItem("\(localizer.t("menu.ram")): \(ByteFormatter.memory(memorySnapshot.usedPhysicalBytes)) / \(ByteFormatter.memory(memorySnapshot.totalPhysicalBytes)) (\(PercentFormatter.compact(memorySnapshot.usedPhysicalPercent)))")
-        addDisabledItem("\(localizer.t("menu.swap")): \(ByteFormatter.memory(memorySnapshot.swapUsedBytes)) / \(ByteFormatter.memory(memorySnapshot.swapTotalBytes))")
-        addDisabledItem("\(localizer.t("menu.compressed")): \(ByteFormatter.memory(memorySnapshot.compressedBytes))")
-        addDisabledItem("\(localizer.t("menu.frontmost")): \(foregroundTracker.currentFrontmostDisplayName ?? "-")")
-        addDisabledItem("\(localizer.t("menu.trackedApps")): \(snapshot.count)")
+        addDashboardItem()
         menu.addItem(.separator())
 
         let settingsItem = NSMenuItem(
@@ -179,6 +175,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             keyEquivalent: ","
         )
         settingsItem.target = self
+        settingsItem.image = symbolMenuIcon("gearshape")
         menu.addItem(settingsItem)
 
         let releaseItem = NSMenuItem(
@@ -187,6 +184,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             keyEquivalent: ""
         )
         releaseItem.target = self
+        releaseItem.image = symbolMenuIcon("sparkles")
         menu.addItem(releaseItem)
         menu.addItem(.separator())
 
@@ -199,12 +197,24 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         let quitItem = NSMenuItem(title: localizer.t("menu.quit"), action: #selector(quitApp(_:)), keyEquivalent: "q")
         quitItem.target = self
+        quitItem.image = symbolMenuIcon("power")
         menu.addItem(quitItem)
     }
 
     private func addDisabledItem(_ title: String) {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false
+        menu.addItem(item)
+    }
+
+    private func addDashboardItem() {
+        let item = NSMenuItem()
+        item.view = MemoryDashboardMenuView(
+            memorySnapshot: memorySnapshot,
+            thresholdConfiguration: makeThresholdConfiguration(),
+            isExceeded: thresholdEvaluation.isExceeded,
+            localizer: localizer
+        )
         menu.addItem(item)
     }
 
@@ -246,6 +256,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             item.representedObject = bundleID
             item.target = self
         }
+        item.image = menuIcon(for: app)
         menu.addItem(item)
         menu.addItem(.separator())
     }
@@ -267,11 +278,13 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
                     keyEquivalent: ""
                 )
                 item.isEnabled = true
+                item.image = menuIcon(for: app)
                 submenu.addItem(item)
             }
         }
 
         let parent = NSMenuItem(title: localizer.t("menu.releaseCandidates"), action: nil, keyEquivalent: "")
+        parent.image = symbolMenuIcon("list.bullet.rectangle")
         parent.submenu = submenu
         menu.addItem(parent)
     }
@@ -292,6 +305,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
                 keyEquivalent: ""
             )
             item.isEnabled = true
+            item.image = menuIcon(for: app)
             submenu.addItem(item)
         }
 
@@ -302,6 +316,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         }
 
         let parent = NSMenuItem(title: localizer.t("menu.backgroundApps"), action: nil, keyEquivalent: "")
+        parent.image = symbolMenuIcon("macwindow")
         parent.submenu = submenu
         menu.addItem(parent)
     }
@@ -323,6 +338,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
                 )
                 item.target = self
                 item.representedObject = bundleID
+                item.image = menuIcon(forBundleID: bundleID)
                 submenu.addItem(item)
             }
         }
@@ -337,8 +353,36 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         submenu.addItem(defaultsItem)
 
         let parent = NSMenuItem(title: localizer.t("menu.whitelist"), action: nil, keyEquivalent: "")
+        parent.image = symbolMenuIcon("checkmark.shield")
         parent.submenu = submenu
         menu.addItem(parent)
+    }
+
+    private func menuIcon(for app: AppRuntimeState) -> NSImage? {
+        guard let runningApplication = NSRunningApplication(processIdentifier: app.pid) else {
+            return nil
+        }
+        return menuIcon(for: runningApplication)
+    }
+
+    private func menuIcon(for app: NSRunningApplication) -> NSImage? {
+        scaledMenuIcon(app.icon)
+    }
+
+    private func menuIcon(forBundleID bundleID: String) -> NSImage? {
+        guard let app = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == bundleID }) else {
+            return nil
+        }
+        return menuIcon(for: app)
+    }
+
+    private func scaledMenuIcon(_ sourceImage: NSImage?) -> NSImage? {
+        guard let image = sourceImage?.copy() as? NSImage else {
+            return nil
+        }
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = false
+        return image
     }
 
     private func addLogSubmenu() {
@@ -358,8 +402,18 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         }
 
         let parent = NSMenuItem(title: localizer.t("menu.recentEvents"), action: nil, keyEquivalent: "")
+        parent.image = symbolMenuIcon("clock.arrow.circlepath")
         parent.submenu = submenu
         menu.addItem(parent)
+    }
+
+    private func symbolMenuIcon(_ systemName: String) -> NSImage? {
+        guard let image = NSImage(systemSymbolName: systemName, accessibilityDescription: nil) else {
+            return nil
+        }
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = true
+        return image
     }
 
     @objc private func releaseNow(_ sender: NSMenuItem) {
@@ -375,13 +429,46 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
                 settingsStore: settingsStore,
                 memoryProvider: { SystemMemoryMonitor.capture() },
                 onChange: { [weak self] in
-                    self?.refreshSnapshot(performAutomaticRelease: false)
+                    self?.refreshSnapshot(performAutomaticRelease: true)
                     guard let self else { return }
                     self.eventLog.append(self.localizer.t("event.settingsUpdated"))
+                },
+                onExportLogs: { [weak self] in
+                    self?.exportLogs()
                 }
             )
         }
         settingsWindowController?.show()
+    }
+
+    private func exportLogs() {
+        let panel = NSSavePanel()
+        panel.title = localizer.t("settings.exportLogs")
+        panel.nameFieldStringValue = "GreenRAM-Logs-\(Self.fileTimestamp()).log"
+        panel.canCreateDirectories = true
+        if let logType = UTType(filenameExtension: "log") {
+            panel.allowedContentTypes = [logType]
+        }
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try eventLog.export(to: url)
+            eventLog.append(localizer.t("event.logsExported", url.path))
+        } catch {
+            eventLog.append(localizer.t("event.logsExportFailed", error.localizedDescription))
+            let alert = NSAlert()
+            alert.messageText = localizer.t("settings.exportLogsFailed")
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.runModal()
+        }
+    }
+
+    private static func fileTimestamp() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        return formatter.string(from: Date())
     }
 
     @objc private func addWhitelistItem(_ sender: NSMenuItem) {
@@ -400,6 +487,395 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
 
     @objc private func quitApp(_ sender: NSMenuItem) {
         NSApp.terminate(nil)
+    }
+}
+
+private final class MemoryDashboardMenuView: NSView {
+    private let localizer: Localizer
+
+    private enum Layout {
+        static let width: CGFloat = 392
+        static let contentWidth: CGFloat = 360
+        static let sideInset: CGFloat = 16
+    }
+
+    init(
+        memorySnapshot: SystemMemorySnapshot,
+        thresholdConfiguration: MemoryThresholdConfiguration,
+        isExceeded: Bool,
+        localizer: Localizer
+    ) {
+        self.localizer = localizer
+        super.init(frame: NSRect(x: 0, y: 0, width: Layout.width, height: 236))
+        setup(
+            memorySnapshot: memorySnapshot,
+            thresholdConfiguration: thresholdConfiguration,
+            isExceeded: isExceeded
+        )
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    private func setup(
+        memorySnapshot: SystemMemorySnapshot,
+        thresholdConfiguration: MemoryThresholdConfiguration,
+        isExceeded: Bool
+    ) {
+        let effectView = NSVisualEffectView()
+        effectView.material = .menu
+        effectView.blendingMode = .withinWindow
+        effectView.state = .active
+        effectView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(effectView)
+
+        let root = NSStackView()
+        root.orientation = .vertical
+        root.alignment = .leading
+        root.spacing = 12
+        root.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(root)
+
+        NSLayoutConstraint.activate([
+            effectView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            effectView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            effectView.topAnchor.constraint(equalTo: topAnchor),
+            effectView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            root.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Layout.sideInset),
+            root.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -Layout.sideInset),
+            root.topAnchor.constraint(equalTo: topAnchor, constant: 16),
+            root.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16)
+        ])
+
+        root.addArrangedSubview(
+            makeHeader(isExceeded: isExceeded)
+        )
+        root.addArrangedSubview(
+            makePrimaryRAMBlock(
+                memorySnapshot: memorySnapshot,
+                thresholdConfiguration: thresholdConfiguration,
+                isExceeded: isExceeded
+            )
+        )
+
+        let swapDenominator = thresholdConfiguration.swapLimitEnabled
+            ? thresholdConfiguration.swapLimitBytes
+            : memorySnapshot.swapTotalBytes
+        let swapProgress = progress(Double(memorySnapshot.swapUsedBytes), total: Double(max(swapDenominator, 1)))
+        let compressedProgress = progress(Double(memorySnapshot.compressedBytes), total: Double(memorySnapshot.totalPhysicalBytes))
+
+        let secondaryRow = NSStackView()
+        secondaryRow.orientation = .horizontal
+        secondaryRow.alignment = .top
+        secondaryRow.spacing = 12
+        secondaryRow.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            secondaryRow.widthAnchor.constraint(equalToConstant: Layout.contentWidth),
+            secondaryRow.heightAnchor.constraint(equalToConstant: 66)
+        ])
+
+        secondaryRow.addArrangedSubview(
+            makeSecondaryMetricBlock(
+                title: localizer.t("menu.swap"),
+                value: PercentFormatter.compact(swapProgress * 100),
+                detail: ByteFormatter.memory(memorySnapshot.swapUsedBytes),
+                progress: swapProgress,
+                threshold: thresholdConfiguration.swapLimitEnabled ? 1 : nil,
+                isExceeded: thresholdConfiguration.swapLimitEnabled && memorySnapshot.swapUsedBytes >= thresholdConfiguration.swapLimitBytes,
+                systemImageName: "arrow.triangle.2.circlepath"
+            )
+        )
+        secondaryRow.addArrangedSubview(
+            makeSecondaryMetricBlock(
+                title: localizer.t("menu.compressed"),
+                value: PercentFormatter.compact(compressedProgress * 100),
+                detail: ByteFormatter.memory(memorySnapshot.compressedBytes),
+                progress: compressedProgress,
+                threshold: nil,
+                isExceeded: false,
+                systemImageName: "rectangle.compress.vertical"
+            )
+        )
+
+        root.addArrangedSubview(secondaryRow)
+    }
+
+    private func makeHeader(isExceeded: Bool) -> NSView {
+        let row = NSStackView()
+        row.orientation = .horizontal
+        row.alignment = .centerY
+        row.spacing = 8
+        row.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            row.widthAnchor.constraint(equalToConstant: Layout.contentWidth),
+            row.heightAnchor.constraint(equalToConstant: 24)
+        ])
+
+        let iconView = NSImageView(image: StatusIconFactory.makeImage(isExceeded: isExceeded))
+        iconView.imageScaling = .scaleProportionallyDown
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            iconView.widthAnchor.constraint(equalToConstant: 18),
+            iconView.heightAnchor.constraint(equalToConstant: 18)
+        ])
+
+        let titleLabel = label(
+            "GreenRAM",
+            font: .systemFont(ofSize: 13, weight: .semibold),
+            color: .labelColor
+        )
+        let spacer = NSView()
+        let statusLabel = label(
+            isExceeded ? localizer.t("status.exceeded") : localizer.t("status.withinLimits"),
+            font: .systemFont(ofSize: 13, weight: .semibold),
+            color: statusColor(isExceeded)
+        )
+
+        row.addArrangedSubview(iconView)
+        row.addArrangedSubview(titleLabel)
+        row.addArrangedSubview(spacer)
+        row.addArrangedSubview(statusLabel)
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        statusLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+        return row
+    }
+
+    private func makePrimaryRAMBlock(
+        memorySnapshot: SystemMemorySnapshot,
+        thresholdConfiguration: MemoryThresholdConfiguration,
+        isExceeded: Bool
+    ) -> NSView {
+        let color = statusColor(isExceeded)
+        let block = DashboardBlockView()
+        block.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            block.widthAnchor.constraint(equalToConstant: Layout.contentWidth),
+            block.heightAnchor.constraint(equalToConstant: 86)
+        ])
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        block.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: block.leadingAnchor, constant: 14),
+            stack.trailingAnchor.constraint(equalTo: block.trailingAnchor, constant: -14),
+            stack.topAnchor.constraint(equalTo: block.topAnchor, constant: 12),
+            stack.bottomAnchor.constraint(equalTo: block.bottomAnchor, constant: -12)
+        ])
+
+        let topRow = NSStackView()
+        topRow.orientation = .horizontal
+        topRow.alignment = .centerY
+        topRow.spacing = 10
+        topRow.translatesAutoresizingMaskIntoConstraints = false
+        topRow.widthAnchor.constraint(equalToConstant: Layout.contentWidth - 28).isActive = true
+
+        let titleStack = NSStackView()
+        titleStack.orientation = .vertical
+        titleStack.alignment = .leading
+        titleStack.spacing = 2
+
+        let titleLabel = label(
+            localizer.t("menu.ram"),
+            font: .systemFont(ofSize: 13, weight: .semibold),
+            color: .labelColor
+        )
+        let detailLabel = label(
+            "\(ByteFormatter.memory(memorySnapshot.usedPhysicalBytes)) / \(ByteFormatter.memory(memorySnapshot.totalPhysicalBytes))",
+            font: .monospacedDigitSystemFont(ofSize: 12, weight: .medium),
+            color: .secondaryLabelColor
+        )
+        titleStack.addArrangedSubview(titleLabel)
+        titleStack.addArrangedSubview(detailLabel)
+
+        let spacer = NSView()
+        let percentLabel = label(
+            PercentFormatter.compact(memorySnapshot.usedPhysicalPercent),
+            font: .monospacedDigitSystemFont(ofSize: 34, weight: .bold),
+            color: color
+        )
+
+        topRow.addArrangedSubview(titleStack)
+        topRow.addArrangedSubview(spacer)
+        topRow.addArrangedSubview(percentLabel)
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        percentLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        let bar = MemoryMenuBarView(
+            progress: memorySnapshot.usedPhysicalPercent / 100,
+            threshold: thresholdConfiguration.ramLimitPercent / 100,
+            color: color
+        )
+        bar.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            bar.widthAnchor.constraint(equalToConstant: Layout.contentWidth - 28),
+            bar.heightAnchor.constraint(equalToConstant: 12)
+        ])
+
+        stack.addArrangedSubview(topRow)
+        stack.addArrangedSubview(bar)
+        return block
+    }
+
+    private func makeSecondaryMetricBlock(
+        title: String,
+        value: String,
+        detail: String,
+        progress: Double,
+        threshold: Double?,
+        isExceeded: Bool,
+        systemImageName: String
+    ) -> NSView {
+        let color = statusColor(isExceeded)
+        let block = DashboardBlockView()
+        block.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            block.widthAnchor.constraint(equalToConstant: 174),
+            block.heightAnchor.constraint(equalToConstant: 66)
+        ])
+
+        let stack = NSStackView()
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 5
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        block.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: block.leadingAnchor, constant: 10),
+            stack.trailingAnchor.constraint(equalTo: block.trailingAnchor, constant: -10),
+            stack.topAnchor.constraint(equalTo: block.topAnchor, constant: 9),
+            stack.bottomAnchor.constraint(equalTo: block.bottomAnchor, constant: -9)
+        ])
+
+        let titleRow = NSStackView()
+        titleRow.orientation = .horizontal
+        titleRow.alignment = .centerY
+        titleRow.spacing = 6
+        titleRow.translatesAutoresizingMaskIntoConstraints = false
+        titleRow.widthAnchor.constraint(equalToConstant: 154).isActive = true
+
+        let iconView = NSImageView()
+        iconView.image = NSImage(systemSymbolName: systemImageName, accessibilityDescription: nil)
+        iconView.contentTintColor = color
+        iconView.imageScaling = .scaleProportionallyDown
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            iconView.widthAnchor.constraint(equalToConstant: 15),
+            iconView.heightAnchor.constraint(equalToConstant: 15)
+        ])
+
+        let titleLabel = label(title, font: .systemFont(ofSize: 12, weight: .semibold), color: .labelColor)
+        let spacer = NSView()
+        let valueLabel = label(value, font: .monospacedDigitSystemFont(ofSize: 16, weight: .bold), color: color)
+        valueLabel.alignment = .right
+
+        titleRow.addArrangedSubview(iconView)
+        titleRow.addArrangedSubview(titleLabel)
+        titleRow.addArrangedSubview(spacer)
+        titleRow.addArrangedSubview(valueLabel)
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        valueLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        let bar = MemoryMenuBarView(progress: progress, threshold: threshold, color: color)
+        bar.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            bar.widthAnchor.constraint(equalToConstant: 154),
+            bar.heightAnchor.constraint(equalToConstant: 8)
+        ])
+
+        let detailLabel = label(
+            detail,
+            font: .monospacedDigitSystemFont(ofSize: 11, weight: .medium),
+            color: .secondaryLabelColor
+        )
+
+        stack.addArrangedSubview(titleRow)
+        stack.addArrangedSubview(bar)
+        stack.addArrangedSubview(detailLabel)
+        return block
+    }
+
+    private func label(_ text: String, font: NSFont, color: NSColor) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = font
+        label.textColor = color
+        label.lineBreakMode = .byTruncatingTail
+        label.maximumNumberOfLines = 1
+        return label
+    }
+
+    private func statusColor(_ isExceeded: Bool) -> NSColor {
+        isExceeded ? .systemRed : .systemGreen
+    }
+
+    private func progress(_ value: Double, total: Double) -> Double {
+        guard total > 0 else { return 0 }
+        return min(max(value / total, 0), 1)
+    }
+}
+
+private final class DashboardBlockView: NSView {
+    override var isOpaque: Bool {
+        false
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let rect = bounds.insetBy(dx: 0.5, dy: 0.5)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 8, yRadius: 8)
+        NSColor.labelColor.withAlphaComponent(0.045).setFill()
+        path.fill()
+
+        NSColor.separatorColor.withAlphaComponent(0.16).setStroke()
+        path.lineWidth = 1
+        path.stroke()
+    }
+}
+
+private final class MemoryMenuBarView: NSView {
+    private let progress: Double
+    private let threshold: Double?
+    private let color: NSColor
+
+    init(progress: Double, threshold: Double?, color: NSColor) {
+        self.progress = min(max(progress, 0), 1)
+        self.threshold = threshold.map { min(max($0, 0), 1) }
+        self.color = color
+        super.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let rect = bounds.insetBy(dx: 0, dy: 2)
+        let track = NSBezierPath(roundedRect: rect, xRadius: rect.height / 2, yRadius: rect.height / 2)
+        NSColor.separatorColor.withAlphaComponent(0.35).setFill()
+        track.fill()
+
+        if progress > 0 {
+            let fillWidth = max(rect.height, rect.width * progress)
+            let fillRect = NSRect(x: rect.minX, y: rect.minY, width: min(fillWidth, rect.width), height: rect.height)
+            let fill = NSBezierPath(roundedRect: fillRect, xRadius: rect.height / 2, yRadius: rect.height / 2)
+            color.setFill()
+            fill.fill()
+        }
+
+        if let threshold {
+            let markerX = rect.minX + rect.width * threshold
+            let markerRect = NSRect(x: markerX - 1, y: rect.minY - 2, width: 2, height: rect.height + 4)
+            NSColor.labelColor.withAlphaComponent(0.35).setFill()
+            NSBezierPath(roundedRect: markerRect, xRadius: 1, yRadius: 1).fill()
+        }
     }
 }
 

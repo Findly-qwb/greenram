@@ -8,12 +8,14 @@ final class SettingsWindowController: NSWindowController {
     init(
         settingsStore: SettingsStore,
         memoryProvider: @escaping () -> SystemMemorySnapshot,
-        onChange: @escaping () -> Void
+        onChange: @escaping () -> Void,
+        onExportLogs: @escaping () -> Void
     ) {
         self.viewModel = SettingsViewModel(
             settingsStore: settingsStore,
             memoryProvider: memoryProvider,
-            onChange: onChange
+            onChange: onChange,
+            onExportLogs: onExportLogs
         )
 
         let window = NSWindow(
@@ -65,6 +67,7 @@ private final class SettingsViewModel: ObservableObject {
     private let settingsStore: SettingsStore
     private let memoryProvider: () -> SystemMemorySnapshot
     private let onChange: () -> Void
+    private let onExportLogs: () -> Void
 
     @Published var memorySnapshot: SystemMemorySnapshot
     @Published var languageCode: String
@@ -80,11 +83,13 @@ private final class SettingsViewModel: ObservableObject {
     init(
         settingsStore: SettingsStore,
         memoryProvider: @escaping () -> SystemMemorySnapshot,
-        onChange: @escaping () -> Void
+        onChange: @escaping () -> Void,
+        onExportLogs: @escaping () -> Void
     ) {
         self.settingsStore = settingsStore
         self.memoryProvider = memoryProvider
         self.onChange = onChange
+        self.onExportLogs = onExportLogs
         self.memorySnapshot = memoryProvider()
         self.languageCode = settingsStore.languageCode
         self.ramLimitPercent = settingsStore.ramLimitPercent
@@ -117,6 +122,10 @@ private final class SettingsViewModel: ObservableObject {
         load()
         onChange()
     }
+
+    func exportLogs() {
+        onExportLogs()
+    }
 }
 
 private struct SettingsView: View {
@@ -133,6 +142,7 @@ private struct SettingsView: View {
                 memorySection
                 thresholdSection
                 languageSection
+                logSection
                 footer
             }
             .padding(28)
@@ -269,6 +279,25 @@ private struct SettingsView: View {
                 .frame(maxWidth: 260, alignment: .leading)
 
                 Spacer()
+            }
+            .padding(.vertical, 16)
+        }
+    }
+
+    private var logSection: some View {
+        settingsPanel(title: localizer.t("settings.logs"), systemImage: "doc.text", color: Color(nsColor: .systemGray)) {
+            HStack(spacing: 18) {
+                Text(localizer.t("settings.logRetentionHint"))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer()
+
+                Button(localizer.t("settings.exportLogs")) {
+                    viewModel.exportLogs()
+                }
+                .controlSize(.large)
             }
             .padding(.vertical, 16)
         }

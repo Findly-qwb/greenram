@@ -232,17 +232,33 @@ public struct Localizer: Equatable {
             .fr: "Dans la limite"
         ],
         "menu.autoRelease": [
-            .en: "Auto Quit When Over Limit",
-            .zhHans: "超限自动结束后台 App",
-            .zhHant: "超限自動結束背景 App",
-            .ja: "上限超過時に背景アプリを終了",
-            .de: "Bei Limitüberschreitung automatisch beenden",
-            .fr: "Fermer automatiquement au dépassement"
+            .en: "Auto Clean When Over Limit",
+            .zhHans: "超限自动清理后台 App",
+            .zhHant: "超限自動清理背景 App",
+            .ja: "上限超過時に背景アプリを整理",
+            .de: "Bei Limitüberschreitung automatisch bereinigen",
+            .fr: "Nettoyer automatiquement au dépassement"
+        ],
+        "dashboard.candidates": [
+            .en: "Background",
+            .zhHans: "后台",
+            .zhHant: "背景",
+            .ja: "背景",
+            .de: "Hintergrund",
+            .fr: "Arrière-plan"
+        ],
+        "dashboard.trackedApps": [
+            .en: "Apps",
+            .zhHans: "应用",
+            .zhHant: "App",
+            .ja: "アプリ",
+            .de: "Apps",
+            .fr: "Apps"
         ],
         "menu.aggressiveForceKill": [
             .en: "Aggressive Force Kill",
             .zhHans: "激进强杀",
-            .zhHant: "激進強制結束",
+            .zhHant: "激進強殺",
             .ja: "強制終了モード",
             .de: "Aggressiv beenden",
             .fr: "Forcer la fermeture"
@@ -256,17 +272,17 @@ public struct Localizer: Equatable {
             .fr: "Réglages..."
         ],
         "menu.releaseNow": [
-            .en: "Quit Background Apps Now",
-            .zhHans: "立即结束后台 App",
-            .zhHant: "立即結束背景 App",
-            .ja: "背景アプリを今すぐ終了",
-            .de: "Hintergrund-Apps jetzt beenden",
-            .fr: "Fermer les apps en arrière-plan"
+            .en: "Clean Background Apps Now",
+            .zhHans: "立即清理后台 App",
+            .zhHant: "立即清理背景 App",
+            .ja: "背景アプリを今すぐ整理",
+            .de: "Hintergrund-Apps jetzt bereinigen",
+            .fr: "Nettoyer les apps en arrière-plan"
         ],
         "menu.quit": [
             .en: "Quit",
             .zhHans: "退出",
-            .zhHant: "結束",
+            .zhHant: "退出",
             .ja: "終了",
             .de: "Beenden",
             .fr: "Quitter"
@@ -297,19 +313,19 @@ public struct Localizer: Equatable {
         ],
         "menu.noSafeCandidates": [
             .en: "No eligible background apps",
-            .zhHans: "没有可结束的后台 App",
-            .zhHant: "沒有可結束的背景 App",
-            .ja: "終了できる背景アプリはありません",
+            .zhHans: "暂无后台 App",
+            .zhHant: "暫無背景 App",
+            .ja: "対象の背景アプリはありません",
             .de: "Keine geeigneten Hintergrund-Apps",
             .fr: "Aucune app admissible en arrière-plan"
         ],
         "menu.releaseCandidates": [
-            .en: "Background Apps GreenRAM May Quit",
-            .zhHans: "可结束的后台 App",
-            .zhHant: "可結束的背景 App",
-            .ja: "GreenRAMが終了できる背景アプリ",
-            .de: "Beendbare Hintergrund-Apps",
-            .fr: "Apps en arrière-plan pouvant être fermées"
+            .en: "Background Apps",
+            .zhHans: "后台 App",
+            .zhHant: "背景 App",
+            .ja: "背景アプリ",
+            .de: "Hintergrund-Apps",
+            .fr: "Apps en arrière-plan"
         ],
         "menu.childProcessCount": [
             .en: "%d child processes",
@@ -440,12 +456,12 @@ public struct Localizer: Equatable {
             .fr: "Limites de déclenchement"
         ],
         "settings.autoReleaseCheckbox": [
-            .en: "Auto quit background apps when over limit",
-            .zhHans: "超限后自动结束后台 App",
-            .zhHant: "超限後自動結束背景 App",
-            .ja: "上限超過時に背景アプリを自動終了",
-            .de: "Hintergrund-Apps bei Limitüberschreitung beenden",
-            .fr: "Fermer les apps en arrière-plan au dépassement"
+            .en: "Auto clean background apps when over limit",
+            .zhHans: "超限后自动清理后台 App",
+            .zhHant: "超限後自動清理背景 App",
+            .ja: "上限超過時に背景アプリを自動整理",
+            .de: "Hintergrund-Apps bei Limitüberschreitung bereinigen",
+            .fr: "Nettoyer les apps en arrière-plan au dépassement"
         ],
         "settings.ramLimit": [
             .en: "RAM Max",
@@ -513,8 +529,8 @@ public struct Localizer: Equatable {
         ],
         "settings.minimumAppMemory": [
             .en: "Minimum app memory",
-            .zhHans: "可结束 App 最小内存",
-            .zhHant: "可結束 App 最小記憶體",
+            .zhHans: "后台 App 最小内存",
+            .zhHant: "背景 App 最小記憶體",
             .ja: "候補アプリの最小メモリ",
             .de: "Min. App-Speicher",
             .fr: "Mémoire app minimale"
@@ -583,6 +599,38 @@ public struct Localizer: Equatable {
             .de: "Abbrechen",
             .fr: "Annuler"
         ],
+        "settings.logs": [
+            .en: "Logs",
+            .zhHans: "日志",
+            .zhHant: "日誌",
+            .ja: "ログ",
+            .de: "Protokolle",
+            .fr: "Journaux"
+        ],
+        "settings.exportLogs": [
+            .en: "Export Logs",
+            .zhHans: "导出日志",
+            .zhHant: "匯出日誌",
+            .ja: "ログを書き出す",
+            .de: "Protokolle exportieren",
+            .fr: "Exporter les journaux"
+        ],
+        "settings.exportLogsFailed": [
+            .en: "Export failed",
+            .zhHans: "导出失败",
+            .zhHant: "匯出失敗",
+            .ja: "書き出しに失敗しました",
+            .de: "Export fehlgeschlagen",
+            .fr: "Échec de l’export"
+        ],
+        "settings.logRetentionHint": [
+            .en: "GreenRAM keeps events from the last 3 days. Export includes automatic cleanups, manual actions, settings changes, and whitelist changes.",
+            .zhHans: "GreenRAM 会保留最近 3 天事件。导出内容包含自动清理、手动操作、设置变更和白名单变更。",
+            .zhHant: "GreenRAM 會保留最近 3 天事件。匯出內容包含自動清理、手動操作、設定變更和白名單變更。",
+            .ja: "GreenRAMは直近3日間のイベントを保持します。自動整理、手動操作、設定変更、ホワイトリスト変更を含みます。",
+            .de: "GreenRAM speichert Ereignisse der letzten 3 Tage. Der Export enthält automatische Bereinigungen, manuelle Aktionen, Einstellungen und Whitelist-Änderungen.",
+            .fr: "GreenRAM conserve les événements des 3 derniers jours. L’export inclut nettoyages automatiques, actions manuelles, réglages et liste blanche."
+        ],
         "unit.hours": [
             .en: "hours",
             .zhHans: "小时",
@@ -648,12 +696,12 @@ public struct Localizer: Equatable {
             .fr: "Pression mémoire passée à %@."
         ],
         "event.autoReleaseTrigger": [
-            .en: "Auto quit trigger: %@.",
-            .zhHans: "自动结束触发：%@。",
-            .zhHant: "自動結束觸發：%@。",
-            .ja: "自動終了トリガー：%@。",
-            .de: "Automatisches Beenden ausgelöst: %@.",
-            .fr: "Déclenchement de fermeture : %@."
+            .en: "Auto cleanup trigger: %@.",
+            .zhHans: "自动清理触发：%@。",
+            .zhHant: "自動清理觸發：%@。",
+            .ja: "自動整理トリガー：%@。",
+            .de: "Automatische Bereinigung ausgelöst: %@.",
+            .fr: "Déclenchement du nettoyage : %@."
         ],
         "event.systemPressure": [
             .en: "System pressure %@",
@@ -672,25 +720,25 @@ public struct Localizer: Equatable {
             .fr: "Sous les seuils"
         ],
         "event.autoReleaseEnabled": [
-            .en: "Auto quit enabled.",
-            .zhHans: "超限自动结束已开启。",
-            .zhHant: "超限自動結束已開啟。",
-            .ja: "自動終了を有効にしました。",
-            .de: "Automatisches Beenden aktiviert.",
-            .fr: "Fermeture automatique activée."
+            .en: "Auto cleanup enabled.",
+            .zhHans: "超限自动清理已开启。",
+            .zhHant: "超限自動清理已開啟。",
+            .ja: "自動整理を有効にしました。",
+            .de: "Automatische Bereinigung aktiviert.",
+            .fr: "Nettoyage automatique activé."
         ],
         "event.autoReleaseDisabled": [
-            .en: "Auto quit disabled.",
-            .zhHans: "超限自动结束已关闭。",
-            .zhHant: "超限自動結束已關閉。",
-            .ja: "自動終了を無効にしました。",
-            .de: "Automatisches Beenden deaktiviert.",
-            .fr: "Fermeture automatique désactivée."
+            .en: "Auto cleanup disabled.",
+            .zhHans: "超限自动清理已关闭。",
+            .zhHant: "超限自動清理已關閉。",
+            .ja: "自動整理を無効にしました。",
+            .de: "Automatische Bereinigung deaktiviert.",
+            .fr: "Nettoyage automatique désactivé."
         ],
         "event.aggressiveEnabled": [
             .en: "Aggressive force kill enabled.",
             .zhHans: "激进强杀已开启。",
-            .zhHant: "激進強制結束已開啟。",
+            .zhHant: "激進強殺已開啟。",
             .ja: "強制終了モードを有効にしました。",
             .de: "Aggressives Beenden aktiviert.",
             .fr: "Fermeture forcée activée."
@@ -698,18 +746,18 @@ public struct Localizer: Equatable {
         "event.aggressiveDisabled": [
             .en: "Aggressive force kill disabled.",
             .zhHans: "激进强杀已关闭。",
-            .zhHant: "激進強制結束已關閉。",
+            .zhHant: "激進強殺已關閉。",
             .ja: "強制終了モードを無効にしました。",
             .de: "Aggressives Beenden deaktiviert.",
             .fr: "Fermeture forcée désactivée."
         ],
         "event.manualRelease": [
-            .en: "Manual background app quit requested.",
-            .zhHans: "已手动结束后台 App。",
-            .zhHant: "已手動結束背景 App。",
-            .ja: "背景アプリの手動終了を要求しました。",
-            .de: "Manuelles Beenden von Hintergrund-Apps angefordert.",
-            .fr: "Fermeture manuelle des apps en arrière-plan demandée."
+            .en: "Manual background app cleanup requested.",
+            .zhHans: "已手动清理后台 App。",
+            .zhHant: "已手動清理背景 App。",
+            .ja: "背景アプリの手動整理を要求しました。",
+            .de: "Manuelle Bereinigung von Hintergrund-Apps angefordert.",
+            .fr: "Nettoyage manuel des apps en arrière-plan demandé."
         ],
         "event.settingsUpdated": [
             .en: "Memory policy settings updated.",
@@ -718,6 +766,22 @@ public struct Localizer: Equatable {
             .ja: "メモリポリシー設定を更新しました。",
             .de: "Speicherrichtlinien aktualisiert.",
             .fr: "Réglages de politique mémoire mis à jour."
+        ],
+        "event.logsExported": [
+            .en: "Logs exported to %@.",
+            .zhHans: "日志已导出到 %@。",
+            .zhHant: "日誌已匯出到 %@。",
+            .ja: "ログを書き出しました：%@。",
+            .de: "Protokolle exportiert nach %@.",
+            .fr: "Journaux exportés vers %@."
+        ],
+        "event.logsExportFailed": [
+            .en: "Log export failed: %@.",
+            .zhHans: "日志导出失败：%@。",
+            .zhHant: "日誌匯出失敗：%@。",
+            .ja: "ログの書き出しに失敗しました：%@。",
+            .de: "Protokollexport fehlgeschlagen: %@.",
+            .fr: "Échec de l’export des journaux : %@."
         ],
         "event.addedWhitelist": [
             .en: "Added %@ to whitelist.",
@@ -736,12 +800,12 @@ public struct Localizer: Equatable {
             .fr: "%@ retirée de la liste blanche."
         ],
         "event.autoReleaseDisabledIgnored": [
-            .en: "Auto quit is disabled; pressure event ignored.",
-            .zhHans: "超限自动结束已关闭；忽略压力事件。",
-            .zhHant: "超限自動結束已關閉；忽略壓力事件。",
-            .ja: "自動終了が無効なため圧力イベントを無視しました。",
-            .de: "Automatisches Beenden deaktiviert; Druckereignis ignoriert.",
-            .fr: "Fermeture automatique désactivée ; événement ignoré."
+            .en: "Auto cleanup is disabled; pressure event ignored.",
+            .zhHans: "超限自动清理已关闭；忽略压力事件。",
+            .zhHant: "超限自動清理已關閉；忽略壓力事件。",
+            .ja: "自動整理が無効なため圧力イベントを無視しました。",
+            .de: "Automatische Bereinigung deaktiviert; Druckereignis ignoriert.",
+            .fr: "Nettoyage automatique désactivé ; événement ignoré."
         ],
         "event.noEligibleApps": [
             .en: "No eligible background apps.",
@@ -762,7 +826,7 @@ public struct Localizer: Equatable {
         "event.requestedQuit": [
             .en: "Requested quit for %@ (%@).",
             .zhHans: "已请求退出 %@（%@）。",
-            .zhHant: "已請求結束 %@（%@）。",
+            .zhHant: "已請求退出 %@（%@）。",
             .ja: "%@ の終了を要求しました（%@）。",
             .de: "Beenden von %@ angefordert (%@).",
             .fr: "Fermeture demandée pour %@ (%@)."
@@ -770,23 +834,23 @@ public struct Localizer: Equatable {
         "event.quitFailed": [
             .en: "Quit request failed for %@.",
             .zhHans: "请求退出 %@ 失败。",
-            .zhHant: "請求結束 %@ 失敗。",
+            .zhHant: "請求退出 %@ 失敗。",
             .ja: "%@ の終了要求に失敗しました。",
             .de: "Beenden von %@ fehlgeschlagen.",
             .fr: "Échec de fermeture pour %@."
         ],
         "event.forceTerminated": [
             .en: "Force terminated %@.",
-            .zhHans: "已强制结束 %@。",
-            .zhHant: "已強制結束 %@。",
+            .zhHans: "已强制清理 %@。",
+            .zhHant: "已強制清理 %@。",
             .ja: "%@ を強制終了しました。",
             .de: "%@ wurde erzwungen beendet.",
             .fr: "%@ a été forcée à quitter."
         ],
         "event.forceTerminateFailed": [
             .en: "Force terminate failed for %@.",
-            .zhHans: "强制结束 %@ 失败。",
-            .zhHant: "強制結束 %@ 失敗。",
+            .zhHans: "强制清理 %@ 失败。",
+            .zhHant: "強制清理 %@ 失敗。",
             .ja: "%@ の強制終了に失敗しました。",
             .de: "Erzwungenes Beenden von %@ fehlgeschlagen.",
             .fr: "Échec de fermeture forcée pour %@."
