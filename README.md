@@ -1,15 +1,19 @@
 # GreenRAM
 
-GreenRAM is a macOS menu bar app that watches RAM and Swap usage, then force quits safe background apps when configured limits are exceeded.
+GreenRAM is a macOS menu bar app that watches RAM and Swap usage, then force quits cleanable apps when configured limits are exceeded.
 
 It is built for a simple case: keep the frontmost app responsive when memory pressure gets too high.
+
+## Screenshot
+
+![GreenRAM settings window](docs/screenshots/settings.png)
 
 ## Features
 
 - Menu bar memory status with a green/red leaf icon.
 - RAM and Swap threshold settings.
-- Automatic background app termination when limits are exceeded.
-- Manual "Quit Background Apps Now" action.
+- Automatic cleanable app termination when limits are exceeded.
+- Manual "Clean Apps Now" action.
 - Whitelist support for apps that should never be quit.
 - Multi-process memory accounting for browsers, Electron apps, Xcode helpers, and similar app trees.
 - Localized UI for Simplified Chinese, Traditional Chinese, English, Japanese, German, and French.
@@ -21,7 +25,7 @@ GreenRAM never quits:
 - the frontmost app
 - whitelisted apps
 - protected system apps such as Finder, Dock, and System Settings
-- high-risk apps
+- apps marked as not cleanable
 - small apps below the minimum memory threshold
 
 ## Download
