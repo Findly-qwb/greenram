@@ -5,6 +5,8 @@ public struct MemoryPolicyConfiguration: Equatable {
     public var autoReleaseEnabled: Bool
     public var minimumBackgroundDuration: TimeInterval
     public var minimumBackgroundDurationsByBundleID: [String: TimeInterval]
+    public var autoQuitBundleIDs: Set<String>
+    public var memoryLimitsByBundleID: [String: UInt64]
     public var isMemoryLimitExceeded: Bool
     public var maxAppsPerSweep: Int
     public var forceTerminateImmediately: Bool
@@ -13,6 +15,8 @@ public struct MemoryPolicyConfiguration: Equatable {
         autoReleaseEnabled: Bool = true,
         minimumBackgroundDuration: TimeInterval = MemoryPolicyDefaults.minimumBackgroundDuration,
         minimumBackgroundDurationsByBundleID: [String: TimeInterval] = [:],
+        autoQuitBundleIDs: Set<String> = [],
+        memoryLimitsByBundleID: [String: UInt64] = [:],
         isMemoryLimitExceeded: Bool = false,
         maxAppsPerSweep: Int = 3,
         forceTerminateImmediately: Bool = true
@@ -20,17 +24,32 @@ public struct MemoryPolicyConfiguration: Equatable {
         self.autoReleaseEnabled = autoReleaseEnabled
         self.minimumBackgroundDuration = minimumBackgroundDuration
         self.minimumBackgroundDurationsByBundleID = minimumBackgroundDurationsByBundleID
+        self.autoQuitBundleIDs = autoQuitBundleIDs
+        self.memoryLimitsByBundleID = memoryLimitsByBundleID
         self.isMemoryLimitExceeded = isMemoryLimitExceeded
         self.maxAppsPerSweep = maxAppsPerSweep
         self.forceTerminateImmediately = forceTerminateImmediately
     }
 
-    public func autoQuitBackgroundDuration(for bundleID: String) -> TimeInterval? {
+    public func customBackgroundDuration(for bundleID: String) -> TimeInterval? {
         minimumBackgroundDurationsByBundleID[bundleID]
     }
 
+    public func backgroundDurationThreshold(for bundleID: String) -> TimeInterval {
+        return customBackgroundDuration(for: bundleID) ?? minimumBackgroundDuration
+    }
+
     public func isAutoQuitApp(_ bundleID: String) -> Bool {
-        autoQuitBackgroundDuration(for: bundleID) != nil
+        autoQuitBundleIDs.contains(bundleID)
+    }
+
+    public func memoryLimit(for bundleID: String) -> UInt64? {
+        memoryLimitsByBundleID[bundleID]
+    }
+
+    public func isAppMemoryLimitExceeded(_ app: AppRuntimeState) -> Bool {
+        guard let limit = memoryLimit(for: app.bundleID) else { return false }
+        return app.memoryBytes >= limit
     }
 }
 
@@ -120,11 +139,10 @@ public final class MemoryPolicyEngine {
         guard !app.isWhitelisted else { return false }
 
         let isAutoQuitApp = configuration.isAutoQuitApp(app.bundleID)
-        let backgroundDurationThreshold = configuration.autoQuitBackgroundDuration(for: app.bundleID)
-            ?? configuration.minimumBackgroundDuration
+        let backgroundDurationThreshold = configuration.backgroundDurationThreshold(for: app.bundleID)
 
         guard app.backgroundDuration(now: now) >= backgroundDurationThreshold else { return false }
-        return isAutoQuitApp || configuration.isMemoryLimitExceeded
+        return isAutoQuitApp || configuration.isMemoryLimitExceeded || configuration.isAppMemoryLimitExceeded(app)
     }
 
     public func score(_ app: AppRuntimeState, now: Date = Date()) -> Double {

@@ -4,6 +4,12 @@
 
 All notable GreenRAM release changes are recorded here.
 
+## v0.12.0 - 2026-06-20
+
+- Separated Auto-Quit Apps from per-app Auto-Quit thresholds. Existing custom-time rules migrate into Auto-Quit Apps once to preserve upgrade behavior.
+- Changed App Rules into rule-type subpages and added per-app memory limits as an ordinary-app cleanup gate.
+- Blocked protected apps from being added to Auto-Quit, timeout, or per-app memory-limit rules until they are removed from the whitelist.
+
 ## v0.11.1 - 2026-06-13
 
 - Kept in-app automatic updates on the signed and notarized `.app.zip` release asset.

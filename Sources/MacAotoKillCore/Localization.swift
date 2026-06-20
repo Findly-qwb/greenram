@@ -712,22 +712,22 @@ public struct Localizer: Equatable {
             .fr: "Gérer les règles des apps"
         ],
         "settings.rulesSummary": [
-            .en: "%d auto-quit rules · %d protected apps",
-            .zhHans: "%d 个自动退出规则 · %d 个保护项",
-            .zhHant: "%d 個自動退出規則 · %d 個保護項",
-            .ja: "自動終了ルール %d 件 · 保護中 %d 件",
-            .de: "%d Auto-Beenden-Regeln · %d geschützte Apps",
-            .fr: "%d règles d'auto-fermeture · %d apps protégées"
+            .en: "%d auto-quit apps · %d timeouts · %d memory limits · %d protected apps",
+            .zhHans: "%d 个自动退出 App · %d 个超时时间 · %d 个内存上限 · %d 个保护项",
+            .zhHant: "%d 個自動退出 App · %d 個逾時時間 · %d 個記憶體上限 · %d 個保護項",
+            .ja: "自動終了アプリ %d 件 · タイムアウト %d 件 · メモリ上限 %d 件 · 保護中 %d 件",
+            .de: "%d Auto-Beenden-Apps · %d Zeiten · %d Speicherlimits · %d geschützte Apps",
+            .fr: "%d apps en auto-fermeture · %d delais · %d limites mémoire · %d apps protégées"
         ],
         "settings.rulesPageHint": [
-            .en: "Auto-Quit Apps and protected apps are managed here.",
-            .zhHans: "自动退出 App 和保护项集中在这里管理。",
-            .zhHant: "自動退出 App 和保護項集中在這裡管理。",
-            .ja: "自動終了アプリと保護中のアプリをここで管理します。",
-            .de: "Apps zum automatischen Beenden und geschützte Apps werden hier verwaltet.",
-            .fr: "Les apps en auto-fermeture et protégées se gèrent ici."
+            .en: "Choose a rule type, then manage its apps on the next page.",
+            .zhHans: "先选择规则类型，再到下一页管理参与的 App。",
+            .zhHant: "先選擇規則類型，再到下一頁管理參與的 App。",
+            .ja: "ルールの種類を選び、次のページで対象アプリを管理します。",
+            .de: "Wähle einen Regeltyp und verwalte die Apps auf der nächsten Seite.",
+            .fr: "Choisissez un type de règle, puis gérez ses apps sur la page suivante."
         ],
-        "settings.appIdleTimes": [
+        "settings.autoQuitApps": [
             .en: "Auto-Quit Apps",
             .zhHans: "自动退出 App",
             .zhHant: "自動退出 App",
@@ -735,29 +735,141 @@ public struct Localizer: Equatable {
             .de: "Apps automatisch beenden",
             .fr: "Apps en auto-fermeture"
         ],
+        "settings.autoQuitAppsHint": [
+            .en: "Apps added here quit when their background-time threshold is reached, without waiting for RAM or Swap limits.",
+            .zhHans: "加入这里的 App，达到非前台时间阈值就退出，不等待 RAM 或 Swap 超限。",
+            .zhHant: "加入這裡的 App，達到非前台時間閾值就退出，不等待 RAM 或 Swap 超限。",
+            .ja: "ここに追加したアプリは、背景時間のしきい値に達すると、RAMやSwapの上限を待たずに終了します。",
+            .de: "Apps in dieser Liste werden beendet, sobald ihre Hintergrundzeit erreicht ist, ohne auf RAM- oder Swap-Grenzen zu warten.",
+            .fr: "Les apps ajoutees ici se ferment au seuil d'arriere-plan, sans attendre les limites RAM ou Swap."
+        ],
+        "settings.autoQuitAppsSummary": [
+            .en: "%d apps quit by time only",
+            .zhHans: "%d 个 App 只按时间退出",
+            .zhHant: "%d 個 App 只按時間退出",
+            .ja: "%d 件のアプリは時間だけで終了",
+            .de: "%d Apps werden nur nach Zeit beendet",
+            .fr: "%d apps se ferment au temps seul"
+        ],
+        "settings.noAutoQuitItems": [
+            .en: "No auto-quit apps",
+            .zhHans: "没有自动退出 App",
+            .zhHant: "沒有自動退出 App",
+            .ja: "自動終了アプリはありません",
+            .de: "Keine Apps zum automatischen Beenden",
+            .fr: "Aucune app en auto-fermeture"
+        ],
+        "settings.removeAutoQuitApp": [
+            .en: "Remove %@ from Auto-Quit Apps",
+            .zhHans: "从自动退出 App 中移除 %@",
+            .zhHant: "從自動退出 App 中移除 %@",
+            .ja: "%@ を自動終了アプリから削除",
+            .de: "%@ aus Auto-Beenden-Apps entfernen",
+            .fr: "Retirer %@ des apps en auto-fermeture"
+        ],
+        "settings.appIdleTimes": [
+            .en: "App Timeouts",
+            .zhHans: "单 App 超时时间",
+            .zhHant: "單 App 逾時時間",
+            .ja: "アプリ別タイムアウト",
+            .de: "App-Zeitlimits",
+            .fr: "Délais par app"
+        ],
         "settings.appIdleTimesHint": [
-            .en: "Apps added here quit after being out of focus for the set time.",
-            .zhHans: "加入这里的 App，离开前台达到设定时间就会退出。",
-            .zhHant: "加入這裡的 App，離開前台達到設定時間就會退出。",
-            .ja: "ここに追加したアプリは、最前面でない時間が設定値に達すると終了します。",
-            .de: "Apps in dieser Liste werden beendet, sobald sie lange genug nicht im Vordergrund waren.",
-            .fr: "Les apps ajoutees ici se ferment apres le delai defini hors premier plan."
+            .en: "Set per-app non-frontmost timeouts. Apps without a custom value use the global default.",
+            .zhHans: "给每个 App 单独设置非前台超时时间。没设置的 App 使用全局默认值。",
+            .zhHant: "給每個 App 單獨設定非前台逾時時間。沒設定的 App 使用全域預設值。",
+            .ja: "アプリ別の非前面タイムアウトを設定します。未設定のアプリは全体の既定値を使います。",
+            .de: "Lege App-spezifische Hintergrund-Zeitlimits fest. Ohne eigenen Wert gilt die globale Vorgabe.",
+            .fr: "Définit des délais hors premier plan par app. Sans valeur dédiée, le défaut global s'applique."
+        ],
+        "settings.appIdleTimesSummary": [
+            .en: "%d apps override the global timeout",
+            .zhHans: "%d 个 App 覆盖全局超时时间",
+            .zhHant: "%d 個 App 覆蓋全域逾時時間",
+            .ja: "%d 件のアプリが全体の時間を上書き",
+            .de: "%d Apps überschreiben die globale Zeit",
+            .fr: "%d apps remplacent le délai global"
         ],
         "settings.noAppIdleTimeItems": [
-            .en: "No auto-quit app rules",
-            .zhHans: "没有自动退出 App 规则",
-            .zhHant: "沒有自動退出 App 規則",
-            .ja: "自動終了ルールはありません",
-            .de: "Keine Regeln zum automatischen Beenden",
-            .fr: "Aucune regle d'auto-fermeture"
+            .en: "No app timeouts",
+            .zhHans: "没有单 App 超时时间",
+            .zhHant: "沒有單 App 逾時時間",
+            .ja: "個別時間はありません",
+            .de: "Keine App-Zeitlimits",
+            .fr: "Aucun délai par app"
         ],
         "settings.removeAppIdleTime": [
-            .en: "Remove auto-quit rule for %@",
-            .zhHans: "移除 %@ 的自动退出规则",
-            .zhHant: "移除 %@ 的自動退出規則",
-            .ja: "%@ の自動終了ルールを削除",
-            .de: "Regel zum automatischen Beenden fuer %@ entfernen",
-            .fr: "Supprimer la regle d'auto-fermeture pour %@"
+            .en: "Remove timeout for %@",
+            .zhHans: "移除 %@ 的超时时间",
+            .zhHant: "移除 %@ 的逾時時間",
+            .ja: "%@ の個別時間を削除",
+            .de: "Zeitlimit fuer %@ entfernen",
+            .fr: "Supprimer le délai pour %@"
+        ],
+        "settings.appMemoryLimits": [
+            .en: "App Memory Limits",
+            .zhHans: "单 App 内存上限",
+            .zhHant: "單 App 記憶體上限",
+            .ja: "アプリ別メモリ上限",
+            .de: "App-Speicherlimits",
+            .fr: "Limites mémoire par app"
+        ],
+        "settings.appMemoryLimitsHint": [
+            .en: "Apps added here can be quit when their own memory use reaches the limit and their non-frontmost timeout has passed.",
+            .zhHans: "加入这里的 App，自己的内存达到上限且非前台超时后，就可以被清理。",
+            .zhHant: "加入這裡的 App，自己的記憶體達到上限且非前台逾時後，就可以被清理。",
+            .ja: "ここに追加したアプリは、メモリ使用量が上限に達し、非前面タイムアウトを過ぎると終了対象になります。",
+            .de: "Apps in dieser Liste können beendet werden, wenn ihr Speicherlimit erreicht ist und die Hintergrundzeit abgelaufen ist.",
+            .fr: "Les apps ajoutees ici peuvent se fermer quand leur mémoire atteint la limite et que leur délai hors premier plan est passé."
+        ],
+        "settings.appMemoryLimitsSummary": [
+            .en: "%d apps have their own memory limit",
+            .zhHans: "%d 个 App 有独立内存上限",
+            .zhHant: "%d 個 App 有獨立記憶體上限",
+            .ja: "%d 件のアプリに個別メモリ上限",
+            .de: "%d Apps haben ein eigenes Speicherlimit",
+            .fr: "%d apps ont leur propre limite mémoire"
+        ],
+        "settings.noAppMemoryLimitItems": [
+            .en: "No app memory limits",
+            .zhHans: "没有单 App 内存上限",
+            .zhHant: "沒有單 App 記憶體上限",
+            .ja: "アプリ別メモリ上限はありません",
+            .de: "Keine App-Speicherlimits",
+            .fr: "Aucune limite mémoire par app"
+        ],
+        "settings.removeAppMemoryLimit": [
+            .en: "Remove memory limit for %@",
+            .zhHans: "移除 %@ 的内存上限",
+            .zhHant: "移除 %@ 的記憶體上限",
+            .ja: "%@ のメモリ上限を削除",
+            .de: "Speicherlimit fuer %@ entfernen",
+            .fr: "Supprimer la limite mémoire pour %@"
+        ],
+        "settings.whitelistSummary": [
+            .en: "%d apps are protected",
+            .zhHans: "%d 个 App 受保护",
+            .zhHant: "%d 個 App 受保護",
+            .ja: "%d 件のアプリを保護",
+            .de: "%d Apps sind geschützt",
+            .fr: "%d apps sont protégées"
+        ],
+        "settings.ruleBlockedByWhitelistTitle": [
+            .en: "App is protected",
+            .zhHans: "App 已在白名单",
+            .zhHant: "App 已在白名單",
+            .ja: "アプリは保護されています",
+            .de: "App ist geschützt",
+            .fr: "App protégée"
+        ],
+        "settings.ruleBlockedByWhitelistMessage": [
+            .en: "%@ is already in the whitelist. Remove it from Protected Apps before adding other rules.",
+            .zhHans: "%@ 已经在白名单里。先从保护 App 中移除它，才能添加其他规则。",
+            .zhHant: "%@ 已經在白名單裡。先從保護 App 中移除它，才能加入其他規則。",
+            .ja: "%@ はすでにホワイトリストにあります。他のルールを追加する前に保護対象から削除してください。",
+            .de: "%@ ist bereits in der Whitelist. Entferne die App zuerst aus den geschützten Apps, bevor du andere Regeln hinzufügst.",
+            .fr: "%@ est déjà dans la liste blanche. Retirez-la des apps protégées avant d'ajouter d'autres règles."
         ],
         "settings.warningIdleTime": [
             .en: "Warning background time",
@@ -800,12 +912,12 @@ public struct Localizer: Equatable {
             .fr: "Reinitialiser les reglages de nettoyage ?"
         ],
         "settings.resetConfirmMessage": [
-            .en: "This restores the swap limit and removes auto-quit app rules. Language will stay unchanged.",
-            .zhHans: "这会恢复交换内存限制，并移除自动退出 App 规则。语言设置不会改变。",
-            .zhHant: "這會恢復交換記憶體限制，並移除自動退出 App 規則。語言設定不會改變。",
-            .ja: "Swap上限を既定値に戻し、自動終了ルールを削除します。言語設定は変更されません。",
-            .de: "Das Swap-Limit wird zurückgesetzt und Regeln zum automatischen Beenden werden entfernt. Die Sprache bleibt unverändert.",
-            .fr: "La limite de swap sera réinitialisée et les règles d'auto-fermeture supprimées. La langue restera inchangée."
+            .en: "This restores cleanup limits and removes Auto-Quit Apps, app timeouts, and app memory limits. Language will stay unchanged.",
+            .zhHans: "这会恢复清理限制，并移除自动退出 App、单 App 超时时间和单 App 内存上限。语言设置不会改变。",
+            .zhHant: "這會恢復清理限制，並移除自動退出 App、單 App 逾時時間和單 App 記憶體上限。語言設定不會改變。",
+            .ja: "整理の上限を既定値に戻し、自動終了アプリ、アプリ別時間、アプリ別メモリ上限を削除します。言語設定は変更されません。",
+            .de: "Das setzt Bereinigungsgrenzen zurück und entfernt Auto-Beenden-Apps, App-Zeitlimits und App-Speicherlimits. Die Sprache bleibt unverändert.",
+            .fr: "Les limites de nettoyage seront retablies, et les apps en auto-fermeture, délais par app et limites mémoire seront supprimés. La langue restera inchangée."
         ],
         "settings.resetConfirmButton": [
             .en: "Reset",

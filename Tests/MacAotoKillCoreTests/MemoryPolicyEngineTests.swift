@@ -27,10 +27,7 @@ final class MemoryPolicyEngineTests: XCTestCase {
         let now = Date()
         let idleLongEnough = makeApp(bundleID: "test.idle-shopper", name: "Idle Shopper", lastBackgroundAt: now.addingTimeInterval(-31 * 60))
         let alsoIdleLongEnough = makeApp(bundleID: "test.browser", name: "Browser", lastBackgroundAt: now.addingTimeInterval(-45 * 60))
-        let engine = makeEngine(autoQuitDurations: [
-            "test.idle-shopper": 30 * 60,
-            "test.browser": 30 * 60
-        ])
+        let engine = makeEngine(autoQuitBundleIDs: ["test.idle-shopper", "test.browser"])
 
         let candidates = engine.candidates(for: [idleLongEnough, alsoIdleLongEnough], now: now)
 
@@ -42,11 +39,9 @@ final class MemoryPolicyEngineTests: XCTestCase {
         let listedApp = makeApp(bundleID: "test.listed", name: "Listed", lastBackgroundAt: now.addingTimeInterval(-31 * 60))
         let idleUnlistedApp = makeApp(bundleID: "test.unlisted-idle", name: "Unlisted Idle", lastBackgroundAt: now.addingTimeInterval(-31 * 60))
         let recentUnlistedApp = makeApp(bundleID: "test.unlisted-recent", name: "Unlisted Recent", lastBackgroundAt: now.addingTimeInterval(-29 * 60))
-        let belowLimitEngine = makeEngine(autoQuitDurations: [
-            "test.listed": 30 * 60
-        ])
+        let belowLimitEngine = makeEngine(autoQuitBundleIDs: ["test.listed"])
         let exceededLimitEngine = makeEngine(
-            autoQuitDurations: ["test.listed": 30 * 60],
+            autoQuitBundleIDs: ["test.listed"],
             isMemoryLimitExceeded: true
         )
 
@@ -58,9 +53,7 @@ final class MemoryPolicyEngineTests: XCTestCase {
 
     func testAutoQuitAppsDoNotWaitForMemoryLimit() {
         let now = Date()
-        let engine = makeEngine(autoQuitDurations: [
-            "test.auto-quit": 30 * 60
-        ])
+        let engine = makeEngine(autoQuitBundleIDs: ["test.auto-quit"])
         let app = makeApp(bundleID: "test.auto-quit", name: "Auto Quit", lastBackgroundAt: now.addingTimeInterval(-31 * 60))
 
         XCTAssertEqual(engine.candidates(for: [app], now: now).map(\.bundleID), ["test.auto-quit"])
@@ -69,11 +62,7 @@ final class MemoryPolicyEngineTests: XCTestCase {
     func testPolicyNeverTargetsFrontmostWhitelistedOrRecentlyBackgroundedApps() {
         let now = Date()
         let engine = makeEngine(
-            autoQuitDurations: [
-                "test.front": 30 * 60,
-                "test.pinned": 30 * 60,
-                "test.recent": 30 * 60
-            ],
+            autoQuitBundleIDs: ["test.front", "test.pinned", "test.recent"],
             isMemoryLimitExceeded: true
         )
         let apps = [
@@ -87,10 +76,35 @@ final class MemoryPolicyEngineTests: XCTestCase {
         XCTAssertTrue(candidates.isEmpty)
     }
 
+    func testWhitelistOverridesAllCleanupRules() {
+        let now = Date()
+        let engine = MemoryPolicyEngine(
+            configuration: MemoryPolicyConfiguration(
+                minimumBackgroundDuration: 30 * 60,
+                minimumBackgroundDurationsByBundleID: ["test.protected": 10 * 60],
+                autoQuitBundleIDs: ["test.protected"],
+                memoryLimitsByBundleID: ["test.protected": 512 * 1024 * 1024],
+                isMemoryLimitExceeded: true
+            ),
+            terminator: TerminatorSpy(),
+            logger: LoggerSpy()
+        )
+        let app = makeApp(
+            bundleID: "test.protected",
+            name: "Protected",
+            lastBackgroundAt: now.addingTimeInterval(-60 * 60),
+            memoryBytes: 2 * 1024 * 1024 * 1024,
+            isWhitelisted: true
+        )
+
+        XCTAssertFalse(engine.shouldTerminate(app, now: now))
+        XCTAssertTrue(engine.candidates(for: [app], now: now).isEmpty)
+    }
+
     func testPolicyNeverTargetsOwnBundleIdentifier() {
         let now = Date()
         let engine = makeEngine(
-            autoQuitDurations: [AppIdentity.bundleIdentifier: 30 * 60],
+            autoQuitBundleIDs: [AppIdentity.bundleIdentifier],
             isMemoryLimitExceeded: true
         )
         let app = makeApp(
@@ -111,7 +125,7 @@ final class MemoryPolicyEngineTests: XCTestCase {
         let bundleIDs = (0..<4).map { "test.app-\($0)" }
         let engine = MemoryPolicyEngine(
             configuration: MemoryPolicyConfiguration(
-                minimumBackgroundDurationsByBundleID: Dictionary(uniqueKeysWithValues: bundleIDs.map { ($0, 30 * 60) }),
+                autoQuitBundleIDs: Set(bundleIDs),
                 maxAppsPerSweep: 2
             ),
             terminator: terminator,
@@ -140,7 +154,7 @@ final class MemoryPolicyEngineTests: XCTestCase {
         let engine = MemoryPolicyEngine(
             configuration: MemoryPolicyConfiguration(
                 autoReleaseEnabled: false,
-                minimumBackgroundDurationsByBundleID: ["test.background": 30 * 60]
+                autoQuitBundleIDs: ["test.background"]
             ),
             terminator: terminator,
             logger: logger
@@ -166,7 +180,8 @@ final class MemoryPolicyEngineTests: XCTestCase {
                 minimumBackgroundDurationsByBundleID: [
                     "test.short": 10 * 60,
                     "test.long": 60 * 60
-                ]
+                ],
+                autoQuitBundleIDs: ["test.short", "test.long"]
             ),
             terminator: TerminatorSpy(),
             logger: LoggerSpy()
@@ -192,13 +207,116 @@ final class MemoryPolicyEngineTests: XCTestCase {
         XCTAssertEqual(candidates.map(\.bundleID), ["test.short"])
     }
 
+    func testPerAppBackgroundThresholdAffectsOrdinaryAppsWithoutMakingThemAutoQuit() {
+        let now = Date()
+        let recentOrdinaryApp = makeApp(
+            bundleID: "test.ordinary",
+            name: "Short Ordinary",
+            lastBackgroundAt: now.addingTimeInterval(-11 * 60)
+        )
+        let oldOrdinaryApp = makeApp(
+            bundleID: "test.ordinary",
+            name: "Old Ordinary",
+            lastBackgroundAt: now.addingTimeInterval(-31 * 60)
+        )
+        let autoQuitApp = makeApp(
+            bundleID: "test.auto-short",
+            name: "Auto Short",
+            lastBackgroundAt: now.addingTimeInterval(-11 * 60)
+        )
+        let belowLimitEngine = MemoryPolicyEngine(
+            configuration: MemoryPolicyConfiguration(
+                minimumBackgroundDuration: 30 * 60,
+                minimumBackgroundDurationsByBundleID: [
+                    "test.ordinary": 10 * 60,
+                    "test.auto-short": 10 * 60
+                ],
+                autoQuitBundleIDs: ["test.auto-short"]
+            ),
+            terminator: TerminatorSpy(),
+            logger: LoggerSpy()
+        )
+        let exceededLimitEngine = MemoryPolicyEngine(
+            configuration: MemoryPolicyConfiguration(
+                minimumBackgroundDuration: 30 * 60,
+                minimumBackgroundDurationsByBundleID: [
+                    "test.ordinary": 10 * 60,
+                    "test.auto-short": 10 * 60
+                ],
+                autoQuitBundleIDs: ["test.auto-short"],
+                isMemoryLimitExceeded: true
+            ),
+            terminator: TerminatorSpy(),
+            logger: LoggerSpy()
+        )
+
+        XCTAssertEqual(belowLimitEngine.candidates(for: [recentOrdinaryApp, autoQuitApp], now: now).map(\.bundleID), ["test.auto-short"])
+        XCTAssertEqual(exceededLimitEngine.candidates(for: [recentOrdinaryApp], now: now).map(\.bundleID), ["test.ordinary"])
+        XCTAssertEqual(exceededLimitEngine.candidates(for: [oldOrdinaryApp], now: now).map(\.bundleID), ["test.ordinary"])
+    }
+
+    func testPerAppMemoryLimitCanGateOrdinaryApps() {
+        let now = Date()
+        let underLimitApp = makeApp(
+            bundleID: "test.memory",
+            name: "Under Limit",
+            lastBackgroundAt: now.addingTimeInterval(-31 * 60),
+            memoryBytes: 900 * 1024 * 1024
+        )
+        let overLimitApp = makeApp(
+            bundleID: "test.memory",
+            name: "Over Limit",
+            lastBackgroundAt: now.addingTimeInterval(-31 * 60),
+            memoryBytes: 1_100 * 1024 * 1024
+        )
+        let recentOverLimitApp = makeApp(
+            bundleID: "test.memory",
+            name: "Recent Over Limit",
+            lastBackgroundAt: now.addingTimeInterval(-29 * 60),
+            memoryBytes: 1_100 * 1024 * 1024
+        )
+        let engine = MemoryPolicyEngine(
+            configuration: MemoryPolicyConfiguration(
+                minimumBackgroundDuration: 30 * 60,
+                memoryLimitsByBundleID: ["test.memory": 1_024 * 1024 * 1024]
+            ),
+            terminator: TerminatorSpy(),
+            logger: LoggerSpy()
+        )
+
+        XCTAssertTrue(engine.candidates(for: [underLimitApp], now: now).isEmpty)
+        XCTAssertTrue(engine.candidates(for: [recentOverLimitApp], now: now).isEmpty)
+        XCTAssertEqual(engine.candidates(for: [overLimitApp], now: now).map(\.bundleID), ["test.memory"])
+    }
+
+    func testPerAppMemoryLimitUsesPerAppBackgroundThreshold() {
+        let now = Date()
+        let app = makeApp(
+            bundleID: "test.short-memory",
+            name: "Short Memory",
+            lastBackgroundAt: now.addingTimeInterval(-11 * 60),
+            memoryBytes: 1_100 * 1024 * 1024
+        )
+        let engine = MemoryPolicyEngine(
+            configuration: MemoryPolicyConfiguration(
+                minimumBackgroundDuration: 30 * 60,
+                minimumBackgroundDurationsByBundleID: ["test.short-memory": 10 * 60],
+                memoryLimitsByBundleID: ["test.short-memory": 1_024 * 1024 * 1024]
+            ),
+            terminator: TerminatorSpy(),
+            logger: LoggerSpy()
+        )
+
+        XCTAssertEqual(engine.candidates(for: [app], now: now).map(\.bundleID), ["test.short-memory"])
+    }
+
     func testDuplicateQuitCooldownUsesBundleID() {
         let now = Date()
         let terminator = TerminatorSpy()
         let logger = LoggerSpy()
         let engine = MemoryPolicyEngine(
             configuration: MemoryPolicyConfiguration(
-                minimumBackgroundDurationsByBundleID: ["test.same-app": 30 * 60]
+                autoQuitBundleIDs: ["test.same-app"]
             ),
             terminator: terminator,
             logger: logger
@@ -228,10 +346,7 @@ final class MemoryPolicyEngineTests: XCTestCase {
         let logger = LoggerSpy()
         let engine = MemoryPolicyEngine(
             configuration: MemoryPolicyConfiguration(
-                minimumBackgroundDurationsByBundleID: [
-                    "test.original": 30 * 60,
-                    "test.reused-pid": 30 * 60
-                ]
+                autoQuitBundleIDs: ["test.original", "test.reused-pid"]
             ),
             terminator: terminator,
             logger: logger
@@ -256,12 +371,16 @@ final class MemoryPolicyEngineTests: XCTestCase {
     }
 
     private func makeEngine(
-        autoQuitDurations: [String: TimeInterval] = [:],
+        autoQuitBundleIDs: Set<String> = [],
+        customBackgroundDurations: [String: TimeInterval] = [:],
+        memoryLimitsByBundleID: [String: UInt64] = [:],
         isMemoryLimitExceeded: Bool = false
     ) -> MemoryPolicyEngine {
         MemoryPolicyEngine(
             configuration: MemoryPolicyConfiguration(
-                minimumBackgroundDurationsByBundleID: autoQuitDurations,
+                minimumBackgroundDurationsByBundleID: customBackgroundDurations,
+                autoQuitBundleIDs: autoQuitBundleIDs,
+                memoryLimitsByBundleID: memoryLimitsByBundleID,
                 isMemoryLimitExceeded: isMemoryLimitExceeded
             ),
             terminator: TerminatorSpy(),

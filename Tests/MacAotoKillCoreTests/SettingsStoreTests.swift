@@ -13,6 +13,9 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.swapLimitEnabled, MemoryPolicyDefaults.swapLimitEnabled)
         XCTAssertEqual(store.swapLimitBytes, MemoryPolicyDefaults.swapLimitBytes)
         XCTAssertEqual(store.minimumBackgroundDuration, MemoryPolicyDefaults.minimumBackgroundDuration)
+        XCTAssertTrue(store.minimumBackgroundDurationsByBundleID.isEmpty)
+        XCTAssertTrue(store.autoQuitBundleIDs.isEmpty)
+        XCTAssertTrue(store.memoryLimitsByBundleID.isEmpty)
         XCTAssertEqual(store.maxAppsPerSweep, MemoryPolicyDefaults.maxAppsPerSweep)
         XCTAssertTrue(store.automaticUpdateReminderEnabled)
     }
@@ -86,7 +89,7 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.swapLimitBytes, MemoryPolicyDefaults.maximumSwapLimitBytes)
     }
 
-    func testAutoQuitBackgroundDurationsPersistAndClampToMinimum() {
+    func testCustomBackgroundDurationsPersistAndClampToMinimum() {
         let suiteName = "milu.greenram.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -96,21 +99,108 @@ final class SettingsStoreTests: XCTestCase {
         store.setMinimumBackgroundDuration(45 * 60, for: "com.example.long")
 
         XCTAssertEqual(store.minimumBackgroundDurationsByBundleID["com.example.short"], MemoryPolicyDefaults.minimumConfigurableBackgroundDuration)
-        XCTAssertEqual(store.autoQuitBackgroundDuration(for: "com.example.long"), 45 * 60)
-        XCTAssertNil(store.autoQuitBackgroundDuration(for: "com.example.default"))
+        XCTAssertEqual(store.customMinimumBackgroundDuration(for: "com.example.long"), 45 * 60)
+        XCTAssertNil(store.customMinimumBackgroundDuration(for: "com.example.default"))
+        XCTAssertTrue(store.autoQuitBundleIDs.isEmpty)
     }
 
-    func testResetMemoryPolicyDefaultsRemovesPerAppBackgroundDurations() {
+    func testAutoQuitBundleIDsPersistSeparatelyFromCustomBackgroundDurations() {
+        let suiteName = "milu.greenram.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = SettingsStore(defaults: defaults)
+        store.setMinimumBackgroundDuration(45 * 60, for: "com.example.timed")
+        store.setAutoQuitEnabled(true, for: "com.example.auto")
+        store.setAutoQuitEnabled(true, for: "  com.example.trimmed  ")
+        store.setAutoQuitEnabled(false, for: "com.example.auto")
+
+        XCTAssertEqual(store.minimumBackgroundDurationsByBundleID.keys.sorted(), ["com.example.timed"])
+        XCTAssertEqual(store.autoQuitBundleIDs, ["com.example.trimmed"])
+        XCTAssertFalse(store.isAutoQuitEnabled(for: "com.example.timed"))
+        XCTAssertTrue(store.isAutoQuitEnabled(for: "com.example.trimmed"))
+    }
+
+    func testMemoryLimitsPersistSeparatelyAndClamp() {
+        let suiteName = "milu.greenram.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = SettingsStore(defaults: defaults)
+        store.setMemoryLimitBytes(30, for: "com.example.small")
+        store.setMemoryLimitBytes(45 * 1024 * 1024 * 1024, for: "  com.example.large  ")
+        store.setMemoryLimitBytes(nil, for: "com.example.small")
+
+        XCTAssertEqual(store.memoryLimitsByBundleID.keys.sorted(), ["com.example.large"])
+        XCTAssertEqual(store.customMemoryLimitBytes(for: "com.example.large"), 45 * 1024 * 1024 * 1024)
+        XCTAssertNil(store.customMemoryLimitBytes(for: "com.example.small"))
+        XCTAssertTrue(store.autoQuitBundleIDs.isEmpty)
+
+        store.setMemoryLimitBytes(1, for: "com.example.minimum")
+        XCTAssertEqual(store.customMemoryLimitBytes(for: "com.example.minimum"), MemoryPolicyDefaults.minimumAppMemoryLimitBytes)
+
+        store.setMemoryLimitBytes(UInt64.max, for: "com.example.maximum")
+        XCTAssertEqual(store.customMemoryLimitBytes(for: "com.example.maximum"), MemoryPolicyDefaults.maximumAppMemoryLimitBytes)
+    }
+
+    func testLegacyCustomBackgroundDurationsMigrateToAutoQuitBundleIDsOnce() {
+        let suiteName = "milu.greenram.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set([
+            "com.example.legacy-short": 10 * 60,
+            "com.example.legacy-long": 45 * 60
+        ], forKey: "minimumBackgroundDurationsByBundleID")
+
+        let store = SettingsStore(defaults: defaults)
+
+        XCTAssertEqual(store.autoQuitBundleIDs, ["com.example.legacy-long", "com.example.legacy-short"])
+        XCTAssertEqual(store.customMinimumBackgroundDuration(for: "com.example.legacy-long"), 45 * 60)
+    }
+
+    func testEmptyLegacyMigrationStillMarksAutoQuitListMigrated() {
+        let suiteName = "milu.greenram.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = SettingsStore(defaults: defaults)
+        store.setMinimumBackgroundDuration(45 * 60, for: "com.example.new-custom-time")
+        let reloadedStore = SettingsStore(defaults: defaults)
+
+        XCTAssertTrue(reloadedStore.autoQuitBundleIDs.isEmpty)
+        XCTAssertEqual(reloadedStore.customMinimumBackgroundDuration(for: "com.example.new-custom-time"), 45 * 60)
+    }
+
+    func testResetMemoryPolicyDefaultsRemovesAppRules() {
         let suiteName = "milu.greenram.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
         let store = SettingsStore(defaults: defaults)
         store.setMinimumBackgroundDuration(45 * 60, for: "com.example.long")
+        store.setAutoQuitEnabled(true, for: "com.example.auto")
+        store.setMemoryLimitBytes(2 * 1024 * 1024 * 1024, for: "com.example.memory")
 
         store.resetMemoryPolicyDefaults()
 
         XCTAssertTrue(store.minimumBackgroundDurationsByBundleID.isEmpty)
+        XCTAssertTrue(store.autoQuitBundleIDs.isEmpty)
+        XCTAssertTrue(store.memoryLimitsByBundleID.isEmpty)
+    }
+
+    func testCustomBackgroundDurationAddedAfterResetDoesNotMigrateToAutoQuit() {
+        let suiteName = "milu.greenram.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = SettingsStore(defaults: defaults)
+        store.setMinimumBackgroundDuration(45 * 60, for: "com.example.before-reset")
+        store.resetMemoryPolicyDefaults()
+        store.setMinimumBackgroundDuration(10 * 60, for: "com.example.after-reset")
+        let reloadedStore = SettingsStore(defaults: defaults)
+
+        XCTAssertTrue(reloadedStore.autoQuitBundleIDs.isEmpty)
+        XCTAssertEqual(reloadedStore.customMinimumBackgroundDuration(for: "com.example.after-reset"), 10 * 60)
     }
 
     func testThresholdConfigurationUsesSharedDefaults() {

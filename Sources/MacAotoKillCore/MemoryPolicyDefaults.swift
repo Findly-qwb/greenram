@@ -6,6 +6,9 @@ public enum MemoryPolicyDefaults {
     public static let minimumSwapLimitBytes: UInt64 = 2 * 1024 * 1024 * 1024
     public static let defaultSwapLimitBytes: UInt64 = 8 * 1024 * 1024 * 1024
     public static let maximumSwapLimitBytes: UInt64 = 64 * 1024 * 1024 * 1024
+    public static let minimumAppMemoryLimitBytes: UInt64 = 128 * 1024 * 1024
+    public static let defaultAppMemoryLimitBytes: UInt64 = 2 * 1024 * 1024 * 1024
+    public static let maximumAppMemoryLimitBytes: UInt64 = 128 * 1024 * 1024 * 1024
     public static let minimumConfigurableBackgroundDuration: TimeInterval = 3 * 60
     public static let minimumBackgroundDuration: TimeInterval = 30 * 60
     public static let maxAppsPerSweep = 3

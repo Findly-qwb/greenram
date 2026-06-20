@@ -8,6 +8,8 @@ public final class SettingsStore {
     private let swapLimitBytesKey = "swapLimitBytes"
     private let minimumBackgroundDurationKey = "minimumBackgroundDuration"
     private let minimumBackgroundDurationsByBundleIDKey = "minimumBackgroundDurationsByBundleID"
+    private let autoQuitBundleIDsKey = "autoQuitBundleIDs"
+    private let memoryLimitsByBundleIDKey = "memoryLimitsByBundleID"
     private let maxAppsPerSweepKey = "maxAppsPerSweep"
     private let languageCodeKey = "languageCode"
     private let lastUpdateCheckAtKey = "lastUpdateCheckAt"
@@ -22,6 +24,7 @@ public final class SettingsStore {
         self.defaults = defaults
         defaults.removeObject(forKey: ramLimitPercentKey)
         migrateLegacyDynamicSwapLimitDefault()
+        migrateLegacyAutoQuitBundleIDs()
         defaults.synchronize()
     }
 
@@ -89,13 +92,50 @@ public final class SettingsStore {
         }
     }
 
-    public func autoQuitBackgroundDuration(for bundleID: String) -> TimeInterval? {
+    public var autoQuitBundleIDs: Set<String> {
+        get {
+            guard let storedValues = defaults.array(forKey: autoQuitBundleIDsKey) as? [String] else {
+                return []
+            }
+
+            return Set(storedValues.compactMap { normalizeBundleID($0) })
+        }
+        set {
+            let normalizedValues = Set(newValue.compactMap { normalizeBundleID($0) }).sorted()
+            defaults.set(normalizedValues, forKey: autoQuitBundleIDsKey)
+        }
+    }
+
+    public var memoryLimitsByBundleID: [String: UInt64] {
+        get {
+            guard let storedValues = defaults.dictionary(forKey: memoryLimitsByBundleIDKey) else {
+                return [:]
+            }
+
+            return storedValues.reduce(into: [String: UInt64]()) { result, entry in
+                guard let bundleID = normalizeBundleID(entry.key) else { return }
+                if let value = entry.value as? Double {
+                    result[bundleID] = clampedAppMemoryLimitBytes(UInt64(Swift.max(0, value)))
+                } else if let value = entry.value as? NSNumber {
+                    result[bundleID] = clampedAppMemoryLimitBytes(UInt64(Swift.max(0, value.doubleValue)))
+                }
+            }
+        }
+        set {
+            let normalizedValues = newValue.reduce(into: [String: Double]()) { result, entry in
+                guard let bundleID = normalizeBundleID(entry.key) else { return }
+                result[bundleID] = Double(clampedAppMemoryLimitBytes(entry.value))
+            }
+            defaults.set(normalizedValues, forKey: memoryLimitsByBundleIDKey)
+        }
+    }
+
+    public func customMinimumBackgroundDuration(for bundleID: String) -> TimeInterval? {
         minimumBackgroundDurationsByBundleID[bundleID]
     }
 
     public func setMinimumBackgroundDuration(_ duration: TimeInterval?, for bundleID: String) {
-        let normalizedBundleID = bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !normalizedBundleID.isEmpty else { return }
+        guard let normalizedBundleID = normalizeBundleID(bundleID) else { return }
 
         var values = minimumBackgroundDurationsByBundleID
         if let duration {
@@ -104,6 +144,40 @@ public final class SettingsStore {
             values.removeValue(forKey: normalizedBundleID)
         }
         minimumBackgroundDurationsByBundleID = values
+    }
+
+    public func isAutoQuitEnabled(for bundleID: String) -> Bool {
+        guard let normalizedBundleID = normalizeBundleID(bundleID) else { return false }
+        return autoQuitBundleIDs.contains(normalizedBundleID)
+    }
+
+    public func setAutoQuitEnabled(_ isEnabled: Bool, for bundleID: String) {
+        guard let normalizedBundleID = normalizeBundleID(bundleID) else { return }
+
+        var bundleIDs = autoQuitBundleIDs
+        if isEnabled {
+            bundleIDs.insert(normalizedBundleID)
+        } else {
+            bundleIDs.remove(normalizedBundleID)
+        }
+        autoQuitBundleIDs = bundleIDs
+    }
+
+    public func customMemoryLimitBytes(for bundleID: String) -> UInt64? {
+        guard let normalizedBundleID = normalizeBundleID(bundleID) else { return nil }
+        return memoryLimitsByBundleID[normalizedBundleID]
+    }
+
+    public func setMemoryLimitBytes(_ limitBytes: UInt64?, for bundleID: String) {
+        guard let normalizedBundleID = normalizeBundleID(bundleID) else { return }
+
+        var values = memoryLimitsByBundleID
+        if let limitBytes {
+            values[normalizedBundleID] = clampedAppMemoryLimitBytes(limitBytes)
+        } else {
+            values.removeValue(forKey: normalizedBundleID)
+        }
+        memoryLimitsByBundleID = values
     }
 
     public var maxAppsPerSweep: Int {
@@ -170,6 +244,8 @@ public final class SettingsStore {
         defaults.removeObject(forKey: swapLimitBytesKey)
         defaults.removeObject(forKey: minimumBackgroundDurationKey)
         defaults.removeObject(forKey: minimumBackgroundDurationsByBundleIDKey)
+        autoQuitBundleIDs = []
+        defaults.removeObject(forKey: memoryLimitsByBundleIDKey)
         defaults.removeObject(forKey: maxAppsPerSweepKey)
     }
 
@@ -209,6 +285,18 @@ public final class SettingsStore {
         )
     }
 
+    private func clampedAppMemoryLimitBytes(_ value: UInt64) -> UInt64 {
+        min(
+            MemoryPolicyDefaults.maximumAppMemoryLimitBytes,
+            max(MemoryPolicyDefaults.minimumAppMemoryLimitBytes, value)
+        )
+    }
+
+    private func normalizeBundleID(_ bundleID: String) -> String? {
+        let trimmed = bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     private func migrateLegacyDynamicSwapLimitDefault() {
         guard defaults.object(forKey: swapLimitBytesKey) != nil else { return }
 
@@ -226,5 +314,10 @@ public final class SettingsStore {
         }
 
         defaults.set(Double(MemoryPolicyDefaults.defaultSwapLimitBytes), forKey: swapLimitBytesKey)
+    }
+
+    private func migrateLegacyAutoQuitBundleIDs() {
+        guard defaults.object(forKey: autoQuitBundleIDsKey) == nil else { return }
+        autoQuitBundleIDs = Set(minimumBackgroundDurationsByBundleID.keys)
     }
 }

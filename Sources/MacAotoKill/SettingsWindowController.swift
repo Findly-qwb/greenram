@@ -3,6 +3,31 @@ import AppleViewModel
 import MacAotoKillCore
 import SwiftUI
 
+private final class SettingsWindow: NSWindow {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.isCommandW {
+            performClose(nil)
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+}
+
+private extension NSEvent {
+    var isCommandW: Bool {
+        guard type == .keyDown,
+              modifierFlags.contains(.command),
+              !modifierFlags.contains(.option),
+              !modifierFlags.contains(.control),
+              !modifierFlags.contains(.shift)
+        else {
+            return false
+        }
+
+        return charactersIgnoringModifiers?.lowercased() == "w"
+    }
+}
+
 @MainActor
 final class SettingsWindowController: NSWindowController {
     private let settingsViewModelBinding: ViewModelBinding
@@ -36,7 +61,7 @@ final class SettingsWindowController: NSWindowController {
         self.viewModel = settingsViewModelBinding.watch(viewModelSpec)
 
         let defaultContentSize = Self.defaultContentSize()
-        let window = NSWindow(
+        let window = SettingsWindow(
             contentRect: NSRect(origin: .zero, size: defaultContentSize),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,

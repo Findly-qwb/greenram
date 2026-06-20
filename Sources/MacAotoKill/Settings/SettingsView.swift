@@ -48,6 +48,11 @@ struct SettingsView: View {
         } message: {
             Text(localizer.t("settings.resetConfirmMessage"))
         }
+        .alert(localizer.t("settings.ruleBlockedByWhitelistTitle"), isPresented: blockedWhitelistedRuleBinding) {
+            Button(localizer.t("update.ok"), role: .cancel) {}
+        } message: {
+            Text(localizer.t("settings.ruleBlockedByWhitelistMessage", state.blockedWhitelistedRuleBundleID ?? ""))
+        }
     }
 
     private var rulesPage: some View {
@@ -60,14 +65,71 @@ struct SettingsView: View {
                     .padding(.vertical, 4)
             }
 
-            appIdleTimeSection
-            whitelistSection
+            Section {
+                ruleNavigationRow(
+                    title: localizer.t("settings.autoQuitApps"),
+                    subtitle: localizer.t("settings.autoQuitAppsSummary", state.autoQuitItems.count),
+                    systemImage: "power.circle",
+                    color: Color(nsColor: .systemRed),
+                    destination: autoQuitRulesPage
+                )
+
+                ruleNavigationRow(
+                    title: localizer.t("settings.appIdleTimes"),
+                    subtitle: localizer.t("settings.appIdleTimesSummary", state.appIdleTimeItems.count),
+                    systemImage: "timer",
+                    color: Color(nsColor: .systemOrange),
+                    destination: appIdleTimeRulesPage
+                )
+
+                ruleNavigationRow(
+                    title: localizer.t("settings.appMemoryLimits"),
+                    subtitle: localizer.t("settings.appMemoryLimitsSummary", state.appMemoryLimitItems.count),
+                    systemImage: "memorychip",
+                    color: Color(nsColor: .systemBlue),
+                    destination: appMemoryLimitRulesPage
+                )
+
+                ruleNavigationRow(
+                    title: localizer.t("menu.whitelist"),
+                    subtitle: localizer.t("settings.whitelistSummary", state.whitelistItems.count),
+                    systemImage: "checkmark.shield",
+                    color: Color(nsColor: .systemGreen),
+                    destination: whitelistRulesPage
+                )
+            } header: {
+                sectionHeader(localizer.t("settings.rules"), systemImage: "slider.horizontal.3")
+            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .background(Color(nsColor: .windowBackgroundColor))
         .frame(minWidth: 700, minHeight: 580)
         .navigationTitle(localizer.t("settings.rules"))
+    }
+
+    private var autoQuitRulesPage: some View {
+        rulesDetailPage(title: localizer.t("settings.autoQuitApps")) {
+            autoQuitSection
+        }
+    }
+
+    private var appIdleTimeRulesPage: some View {
+        rulesDetailPage(title: localizer.t("settings.appIdleTimes")) {
+            appIdleTimeSection
+        }
+    }
+
+    private var appMemoryLimitRulesPage: some View {
+        rulesDetailPage(title: localizer.t("settings.appMemoryLimits")) {
+            appMemoryLimitSection
+        }
+    }
+
+    private var whitelistRulesPage: some View {
+        rulesDetailPage(title: localizer.t("menu.whitelist")) {
+            whitelistSection
+        }
     }
 
     private var memorySection: some View {
@@ -116,6 +178,14 @@ struct SettingsView: View {
 
                 hintRow(localizer.t("settings.swapMinimumHint"))
             }
+
+            valueRow(
+                title: localizer.t("settings.defaultBackgroundTime"),
+                value: minimumBackgroundMinutesBinding,
+                range: (MemoryPolicyDefaults.minimumConfigurableBackgroundDuration / 60)...240,
+                suffix: "min",
+                isExceeded: false
+            )
         } header: {
             sectionHeader(localizer.t("settings.releaseThresholds"), systemImage: "gauge")
         }
@@ -134,7 +204,7 @@ struct SettingsView: View {
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.primary)
 
-                        Text(localizer.t("settings.rulesSummary", state.appIdleTimeItems.count, state.whitelistItems.count))
+                        Text(localizer.t("settings.rulesSummary", state.autoQuitItems.count, state.appIdleTimeItems.count, state.appMemoryLimitItems.count, state.whitelistItems.count))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -150,17 +220,32 @@ struct SettingsView: View {
         }
     }
 
+    private var autoQuitSection: some View {
+        Section {
+            hintRow(localizer.t("settings.autoQuitAppsHint"))
+
+            addBundleIDRow(
+                text: newAutoQuitBundleIDBinding,
+                canAdd: viewModel.canAddAutoQuitBundleID,
+                chooseAction: viewModel.chooseAutoQuitApplications,
+                addAction: viewModel.addAutoQuitBundleID
+            )
+
+            if state.autoQuitItems.isEmpty {
+                emptyRow(localizer.t("settings.noAutoQuitItems"))
+            } else {
+                ForEach(state.autoQuitItems) { item in
+                    autoQuitRow(item)
+                }
+            }
+        } header: {
+            sectionHeader(localizer.t("settings.autoQuitApps"), systemImage: "power.circle")
+        }
+    }
+
     private var appIdleTimeSection: some View {
         Section {
             hintRow(localizer.t("settings.appIdleTimesHint"))
-
-            valueRow(
-                title: localizer.t("settings.defaultBackgroundTime"),
-                value: minimumBackgroundMinutesBinding,
-                range: (MemoryPolicyDefaults.minimumConfigurableBackgroundDuration / 60)...240,
-                suffix: "min",
-                isExceeded: false
-            )
 
             addBundleIDRow(
                 text: newIdleTimeBundleIDBinding,
@@ -178,6 +263,29 @@ struct SettingsView: View {
             }
         } header: {
             sectionHeader(localizer.t("settings.appIdleTimes"), systemImage: "timer")
+        }
+    }
+
+    private var appMemoryLimitSection: some View {
+        Section {
+            hintRow(localizer.t("settings.appMemoryLimitsHint"))
+
+            addBundleIDRow(
+                text: newMemoryLimitBundleIDBinding,
+                canAdd: viewModel.canAddMemoryLimitBundleID,
+                chooseAction: viewModel.chooseMemoryLimitApplications,
+                addAction: viewModel.addMemoryLimitBundleID
+            )
+
+            if state.appMemoryLimitItems.isEmpty {
+                emptyRow(localizer.t("settings.noAppMemoryLimitItems"))
+            } else {
+                ForEach(state.appMemoryLimitItems) { item in
+                    appMemoryLimitRow(item)
+                }
+            }
+        } header: {
+            sectionHeader(localizer.t("settings.appMemoryLimits"), systemImage: "memorychip")
         }
     }
 
@@ -355,10 +463,24 @@ struct SettingsView: View {
         )
     }
 
+    private var newAutoQuitBundleIDBinding: Binding<String> {
+        stateBinding(
+            get: { $0.newAutoQuitBundleID },
+            set: { viewModel.setNewAutoQuitBundleID($0) }
+        )
+    }
+
     private var newIdleTimeBundleIDBinding: Binding<String> {
         stateBinding(
             get: { $0.newIdleTimeBundleID },
             set: { viewModel.setNewIdleTimeBundleID($0) }
+        )
+    }
+
+    private var newMemoryLimitBundleIDBinding: Binding<String> {
+        stateBinding(
+            get: { $0.newMemoryLimitBundleID },
+            set: { viewModel.setNewMemoryLimitBundleID($0) }
         )
     }
 
@@ -373,6 +495,19 @@ struct SettingsView: View {
         stateBinding(
             get: { $0.isResetConfirmationPresented },
             set: { viewModel.setResetConfirmationPresented($0) }
+        )
+    }
+
+    private var blockedWhitelistedRuleBinding: Binding<Bool> {
+        Binding(
+            get: {
+                viewModel.state.blockedWhitelistedRuleBundleID != nil
+            },
+            set: { isPresented in
+                if !isPresented {
+                    viewModel.clearBlockedWhitelistedRuleAlert()
+                }
+            }
         )
     }
 
@@ -455,6 +590,51 @@ struct SettingsView: View {
             .padding(.vertical, 4)
     }
 
+    private func ruleNavigationRow<Destination: View>(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        color: Color,
+        destination: Destination
+    ) -> some View {
+        NavigationLink {
+            destination
+        } label: {
+            HStack(spacing: 12) {
+                glassIcon(systemImage, color: color)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.primary)
+
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func rulesDetailPage<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        Form {
+            content()
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(minWidth: 700, minHeight: 580)
+        .navigationTitle(title)
+    }
+
     private func addBundleIDRow(
         text: Binding<String>,
         canAdd: Bool,
@@ -479,6 +659,32 @@ struct SettingsView: View {
             .disabled(!canAdd)
         }
         .padding(.vertical, 3)
+    }
+
+    private func autoQuitRow(_ item: AutoQuitAppInfo) -> some View {
+        HStack(spacing: 12) {
+            appIcon(item.icon)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.displayName)
+                    .font(.body.weight(.semibold))
+                    .lineLimit(1)
+
+                Text(item.bundleID)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer()
+
+            removeButton {
+                viewModel.removeAutoQuitBundleID(item.bundleID)
+            }
+            .help(localizer.t("settings.removeAutoQuitApp", item.bundleID))
+        }
+        .padding(.vertical, 4)
     }
 
     private func appIdleTimeBinding(for bundleID: String) -> Binding<Double> {
@@ -524,6 +730,53 @@ struct SettingsView: View {
                 viewModel.removeIdleTimeBundleID(item.bundleID)
             }
             .help(localizer.t("settings.removeAppIdleTime", item.bundleID))
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func appMemoryLimitBinding(for bundleID: String) -> Binding<Double> {
+        Binding(
+            get: {
+                viewModel.memoryLimitGB(for: bundleID)
+            },
+            set: { newValue in
+                viewModel.setMemoryLimitGB(newValue, for: bundleID)
+            }
+        )
+    }
+
+    private func appMemoryLimitRow(_ item: MemoryLimitAppInfo) -> some View {
+        HStack(spacing: 12) {
+            appIcon(item.icon)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.displayName)
+                    .font(.body.weight(.semibold))
+                    .lineLimit(1)
+
+                Text(item.bundleID)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer()
+
+            TextField("", value: appMemoryLimitBinding(for: item.bundleID), format: .number.precision(.fractionLength(0...1)))
+                .multilineTextAlignment(.trailing)
+                .font(.system(.body, design: .rounded).weight(.semibold))
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 76)
+
+            Text("GB")
+                .foregroundStyle(.secondary)
+                .frame(width: 30, alignment: .leading)
+
+            removeButton {
+                viewModel.removeMemoryLimitBundleID(item.bundleID)
+            }
+            .help(localizer.t("settings.removeAppMemoryLimit", item.bundleID))
         }
         .padding(.vertical, 4)
     }

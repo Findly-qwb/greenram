@@ -25,11 +25,25 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
             && !whitelistBundleIDs.contains(bundleID)
     }
 
+    var canAddAutoQuitBundleID: Bool {
+        let bundleID = normalizedNewAutoQuitBundleID
+        return !bundleID.isEmpty
+            && !AppIdentity.isOwnBundleIdentifier(bundleID)
+            && !autoQuitBundleIDs.contains(bundleID)
+    }
+
     var canAddIdleTimeBundleID: Bool {
         let bundleID = normalizedNewIdleTimeBundleID
         return !bundleID.isEmpty
             && !AppIdentity.isOwnBundleIdentifier(bundleID)
             && !idleTimeBundleIDs.contains(bundleID)
+    }
+
+    var canAddMemoryLimitBundleID: Bool {
+        let bundleID = normalizedNewMemoryLimitBundleID
+        return !bundleID.isEmpty
+            && !AppIdentity.isOwnBundleIdentifier(bundleID)
+            && !memoryLimitBundleIDs.contains(bundleID)
     }
 
     init(
@@ -65,9 +79,12 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
                 settingsStore: settingsStore,
                 whitelistStore: whitelistStore,
                 memorySnapshot: state.memorySnapshot,
+                newAutoQuitBundleID: state.newAutoQuitBundleID,
                 newIdleTimeBundleID: state.newIdleTimeBundleID,
+                newMemoryLimitBundleID: state.newMemoryLimitBundleID,
                 newWhitelistBundleID: state.newWhitelistBundleID,
-                isResetConfirmationPresented: state.isResetConfirmationPresented
+                isResetConfirmationPresented: state.isResetConfirmationPresented,
+                blockedWhitelistedRuleBundleID: state.blockedWhitelistedRuleBundleID
             )
         )
     }
@@ -116,8 +133,16 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
         updateState { $0.automaticUpdateReminderEnabled = isEnabled }
     }
 
+    func setNewAutoQuitBundleID(_ bundleID: String) {
+        updateState { $0.newAutoQuitBundleID = bundleID }
+    }
+
     func setNewIdleTimeBundleID(_ bundleID: String) {
         updateState { $0.newIdleTimeBundleID = bundleID }
+    }
+
+    func setNewMemoryLimitBundleID(_ bundleID: String) {
+        updateState { $0.newMemoryLimitBundleID = bundleID }
     }
 
     func setNewWhitelistBundleID(_ bundleID: String) {
@@ -128,19 +153,42 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
         updateState { $0.isResetConfirmationPresented = isPresented }
     }
 
+    func clearBlockedWhitelistedRuleAlert() {
+        updateState { $0.blockedWhitelistedRuleBundleID = nil }
+    }
+
+    func addAutoQuitBundleID() {
+        let bundleID = normalizedNewAutoQuitBundleID
+        guard canAddAutoQuitBundleID else { return }
+        guard canAddRuleForNonWhitelistedApp(bundleID) else { return }
+
+        settingsStore.setAutoQuitEnabled(true, for: bundleID)
+        updateState { $0.newAutoQuitBundleID = "" }
+        reloadAutoQuitItems()
+        onChange()
+    }
+
+    func chooseAutoQuitApplications() {
+        let panel = makeApplicationOpenPanel()
+
+        guard panel.runModal() == .OK else { return }
+        addAutoQuitApplications(panel.urls)
+    }
+
+    func removeAutoQuitBundleID(_ bundleID: String) {
+        settingsStore.setAutoQuitEnabled(false, for: bundleID)
+        reloadAutoQuitItems()
+        onChange()
+    }
+
     func addIdleTimeBundleID() {
         let bundleID = normalizedNewIdleTimeBundleID
         guard canAddIdleTimeBundleID else { return }
+        guard canAddRuleForNonWhitelistedApp(bundleID) else { return }
 
-        let wasWhitelisted = whitelistStore.contains(bundleID)
-        whitelistStore.remove(bundleID)
         settingsStore.setMinimumBackgroundDuration(state.minimumBackgroundMinutes * 60, for: bundleID)
         updateState { $0.newIdleTimeBundleID = "" }
-        reloadWhitelist()
         reloadIdleTimeItems()
-        if wasWhitelisted {
-            onWhitelistRemoved(bundleID)
-        }
         onChange()
     }
 
@@ -169,16 +217,57 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
         onChange()
     }
 
+    func addMemoryLimitBundleID() {
+        let bundleID = normalizedNewMemoryLimitBundleID
+        guard canAddMemoryLimitBundleID else { return }
+        guard canAddRuleForNonWhitelistedApp(bundleID) else { return }
+
+        settingsStore.setMemoryLimitBytes(MemoryPolicyDefaults.defaultAppMemoryLimitBytes, for: bundleID)
+        updateState { $0.newMemoryLimitBundleID = "" }
+        reloadMemoryLimitItems()
+        onChange()
+    }
+
+    func chooseMemoryLimitApplications() {
+        let panel = makeApplicationOpenPanel()
+
+        guard panel.runModal() == .OK else { return }
+        addMemoryLimitApplications(panel.urls)
+    }
+
+    func memoryLimitGB(for bundleID: String) -> Double {
+        let bytes = settingsStore.memoryLimitsByBundleID[bundleID] ?? MemoryPolicyDefaults.defaultAppMemoryLimitBytes
+        return Double(bytes) / Double(1024 * 1024 * 1024)
+    }
+
+    func setMemoryLimitGB(_ gigabytes: Double, for bundleID: String) {
+        let clampedGigabytes = Self.clampedAppMemoryLimitGB(gigabytes)
+        let bytes = UInt64(clampedGigabytes * Double(1024 * 1024 * 1024))
+        settingsStore.setMemoryLimitBytes(bytes, for: bundleID)
+        reloadMemoryLimitItems()
+        onChange()
+    }
+
+    func removeMemoryLimitBundleID(_ bundleID: String) {
+        settingsStore.setMemoryLimitBytes(nil, for: bundleID)
+        reloadMemoryLimitItems()
+        onChange()
+    }
+
     func addWhitelistBundleID() {
         let bundleID = normalizedNewWhitelistBundleID
         guard canAddWhitelistBundleID else { return }
 
-        settingsStore.setMinimumBackgroundDuration(nil, for: bundleID)
+        let removedAutoQuitRule = settingsStore.isAutoQuitEnabled(for: bundleID)
+        settingsStore.setAutoQuitEnabled(false, for: bundleID)
         whitelistStore.add(bundleID)
         updateState { $0.newWhitelistBundleID = "" }
-        reloadIdleTimeItems()
+        reloadAutoQuitItems()
         reloadWhitelist()
         onWhitelistAdded(bundleID)
+        if removedAutoQuitRule {
+            onChange()
+        }
     }
 
     func chooseWhitelistApplications() {
@@ -202,12 +291,28 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
         state.newWhitelistBundleID.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var normalizedNewAutoQuitBundleID: String {
+        state.newAutoQuitBundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private var normalizedNewIdleTimeBundleID: String {
         state.newIdleTimeBundleID.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var normalizedNewMemoryLimitBundleID: String {
+        state.newMemoryLimitBundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var autoQuitBundleIDs: Set<String> {
+        Set(state.autoQuitItems.map(\.bundleID))
+    }
+
     private var idleTimeBundleIDs: Set<String> {
         Set(state.appIdleTimeItems.map(\.bundleID))
+    }
+
+    private var memoryLimitBundleIDs: Set<String> {
+        Set(state.appMemoryLimitItems.map(\.bundleID))
     }
 
     private var whitelistBundleIDs: Set<String> {
@@ -233,6 +338,13 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
         return panel
     }
 
+    private func reloadAutoQuitItems() {
+        let bundleIDs = settingsStore.autoQuitBundleIDs.sorted()
+        updateState { next in
+            next.autoQuitItems = SettingsAppInfoResolver.makeAutoQuitItems(from: bundleIDs, store: whitelistStore)
+        }
+    }
+
     private func reloadIdleTimeItems() {
         let bundleIDs = settingsStore.minimumBackgroundDurationsByBundleID.keys.sorted()
         updateState { next in
@@ -240,10 +352,48 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
         }
     }
 
+    private func reloadMemoryLimitItems() {
+        let bundleIDs = settingsStore.memoryLimitsByBundleID.keys.sorted()
+        updateState { next in
+            next.appMemoryLimitItems = SettingsAppInfoResolver.makeMemoryLimitItems(from: bundleIDs, store: whitelistStore)
+        }
+    }
+
     private func reloadWhitelist() {
         let bundleIDs = whitelistStore.allBundleIDs.sorted()
         updateState { next in
             next.whitelistItems = SettingsAppInfoResolver.makeWhitelistItems(from: bundleIDs, store: whitelistStore)
+        }
+    }
+
+    private func canAddRuleForNonWhitelistedApp(_ bundleID: String) -> Bool {
+        guard whitelistStore.contains(bundleID) else { return true }
+        updateState { $0.blockedWhitelistedRuleBundleID = bundleID }
+        return false
+    }
+
+    private func addAutoQuitApplications(_ urls: [URL]) {
+        var didChange = false
+        for url in urls {
+            guard
+                let appURL = SettingsAppInfoResolver.existingApplicationURL(from: url),
+                let bundle = Bundle(url: appURL),
+                let bundleID = Self.nonEmpty(bundle.bundleIdentifier)
+            else {
+                continue
+            }
+            guard !AppIdentity.isOwnBundleIdentifier(bundleID) else { continue }
+            guard canAddRuleForNonWhitelistedApp(bundleID) else { continue }
+
+            let wasAlreadyAutoQuit = settingsStore.isAutoQuitEnabled(for: bundleID)
+            settingsStore.setAutoQuitEnabled(true, for: bundleID)
+            whitelistStore.setAppPath(appURL.path, for: bundleID)
+            didChange = didChange || !wasAlreadyAutoQuit
+        }
+
+        reloadAutoQuitItems()
+        if didChange {
+            onChange()
         }
     }
 
@@ -258,21 +408,41 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
                 continue
             }
             guard !AppIdentity.isOwnBundleIdentifier(bundleID) else { continue }
+            guard canAddRuleForNonWhitelistedApp(bundleID) else { continue }
 
             let oldDuration = settingsStore.minimumBackgroundDurationsByBundleID[bundleID]
             let newDuration = state.minimumBackgroundMinutes * 60
-            let wasWhitelisted = whitelistStore.contains(bundleID)
-            whitelistStore.remove(bundleID)
             settingsStore.setMinimumBackgroundDuration(newDuration, for: bundleID)
             whitelistStore.setAppPath(appURL.path, for: bundleID)
             didChange = didChange || oldDuration != newDuration
-            if wasWhitelisted {
-                onWhitelistRemoved(bundleID)
-            }
         }
 
-        reloadWhitelist()
         reloadIdleTimeItems()
+        if didChange {
+            onChange()
+        }
+    }
+
+    private func addMemoryLimitApplications(_ urls: [URL]) {
+        var didChange = false
+        for url in urls {
+            guard
+                let appURL = SettingsAppInfoResolver.existingApplicationURL(from: url),
+                let bundle = Bundle(url: appURL),
+                let bundleID = Self.nonEmpty(bundle.bundleIdentifier)
+            else {
+                continue
+            }
+            guard !AppIdentity.isOwnBundleIdentifier(bundleID) else { continue }
+            guard canAddRuleForNonWhitelistedApp(bundleID) else { continue }
+
+            let oldLimit = settingsStore.memoryLimitsByBundleID[bundleID]
+            settingsStore.setMemoryLimitBytes(MemoryPolicyDefaults.defaultAppMemoryLimitBytes, for: bundleID)
+            whitelistStore.setAppPath(appURL.path, for: bundleID)
+            didChange = didChange || oldLimit != MemoryPolicyDefaults.defaultAppMemoryLimitBytes
+        }
+
+        reloadMemoryLimitItems()
         if didChange {
             onChange()
         }
@@ -291,8 +461,8 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
             guard !AppIdentity.isOwnBundleIdentifier(bundleID) else { continue }
 
             let wasAlreadyWhitelisted = whitelistStore.contains(bundleID)
-            if settingsStore.minimumBackgroundDurationsByBundleID[bundleID] != nil {
-                settingsStore.setMinimumBackgroundDuration(nil, for: bundleID)
+            if settingsStore.isAutoQuitEnabled(for: bundleID) {
+                settingsStore.setAutoQuitEnabled(false, for: bundleID)
                 didRemoveAutoQuitRule = true
             }
             whitelistStore.add(bundleID)
@@ -301,7 +471,7 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
                 onWhitelistAdded(bundleID)
             }
         }
-        reloadIdleTimeItems()
+        reloadAutoQuitItems()
         reloadWhitelist()
         if didRemoveAutoQuitRule {
             onChange()
@@ -318,11 +488,16 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
         settingsStore: SettingsStore,
         whitelistStore: WhitelistStore,
         memorySnapshot: SystemMemorySnapshot,
+        newAutoQuitBundleID: String = "",
         newIdleTimeBundleID: String = "",
+        newMemoryLimitBundleID: String = "",
         newWhitelistBundleID: String = "",
-        isResetConfirmationPresented: Bool = false
+        isResetConfirmationPresented: Bool = false,
+        blockedWhitelistedRuleBundleID: String? = nil
     ) -> SettingsState {
+        let autoQuitBundleIDs = settingsStore.autoQuitBundleIDs.sorted()
         let idleTimeBundleIDs = settingsStore.minimumBackgroundDurationsByBundleID.keys.sorted()
+        let memoryLimitBundleIDs = settingsStore.memoryLimitsByBundleID.keys.sorted()
         let whitelistBundleIDs = whitelistStore.allBundleIDs.sorted()
 
         return SettingsState(
@@ -334,11 +509,16 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
             minimumBackgroundMinutes: settingsStore.minimumBackgroundDuration / 60,
             automaticUpdateReminderEnabled: settingsStore.automaticUpdateReminderEnabled,
             appVersion: AppIdentity.currentVersion,
+            autoQuitItems: SettingsAppInfoResolver.makeAutoQuitItems(from: autoQuitBundleIDs, store: whitelistStore),
             appIdleTimeItems: SettingsAppInfoResolver.makeIdleTimeItems(from: idleTimeBundleIDs, store: whitelistStore),
+            appMemoryLimitItems: SettingsAppInfoResolver.makeMemoryLimitItems(from: memoryLimitBundleIDs, store: whitelistStore),
             whitelistItems: SettingsAppInfoResolver.makeWhitelistItems(from: whitelistBundleIDs, store: whitelistStore),
+            newAutoQuitBundleID: newAutoQuitBundleID,
             newIdleTimeBundleID: newIdleTimeBundleID,
+            newMemoryLimitBundleID: newMemoryLimitBundleID,
             newWhitelistBundleID: newWhitelistBundleID,
-            isResetConfirmationPresented: isResetConfirmationPresented
+            isResetConfirmationPresented: isResetConfirmationPresented,
+            blockedWhitelistedRuleBundleID: blockedWhitelistedRuleBundleID
         )
     }
 
@@ -353,6 +533,13 @@ final class SettingsViewModel: StateViewModel<SettingsState> {
         min(
             Double(MemoryPolicyDefaults.maximumSwapLimitBytes) / Double(1024 * 1024 * 1024),
             max(Double(MemoryPolicyDefaults.minimumSwapLimitBytes) / Double(1024 * 1024 * 1024), gigabytes)
+        )
+    }
+
+    private static func clampedAppMemoryLimitGB(_ gigabytes: Double) -> Double {
+        min(
+            Double(MemoryPolicyDefaults.maximumAppMemoryLimitBytes) / Double(1024 * 1024 * 1024),
+            max(Double(MemoryPolicyDefaults.minimumAppMemoryLimitBytes) / Double(1024 * 1024 * 1024), gigabytes)
         )
     }
 }

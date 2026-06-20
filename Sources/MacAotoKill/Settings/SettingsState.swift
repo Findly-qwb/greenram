@@ -34,6 +34,36 @@ struct IdleTimeAppInfo: Identifiable, Equatable {
     }
 }
 
+struct AutoQuitAppInfo: Identifiable, Equatable {
+    let bundleID: String
+    let displayName: String
+    let icon: NSImage
+
+    var id: String {
+        bundleID
+    }
+
+    static func == (lhs: AutoQuitAppInfo, rhs: AutoQuitAppInfo) -> Bool {
+        lhs.bundleID == rhs.bundleID
+            && lhs.displayName == rhs.displayName
+    }
+}
+
+struct MemoryLimitAppInfo: Identifiable, Equatable {
+    let bundleID: String
+    let displayName: String
+    let icon: NSImage
+
+    var id: String {
+        bundleID
+    }
+
+    static func == (lhs: MemoryLimitAppInfo, rhs: MemoryLimitAppInfo) -> Bool {
+        lhs.bundleID == rhs.bundleID
+            && lhs.displayName == rhs.displayName
+    }
+}
+
 struct AppDisplayInfo {
     let bundleID: String
     let displayName: String
@@ -49,9 +79,14 @@ struct SettingsState: Equatable {
     var minimumBackgroundMinutes: Double
     var automaticUpdateReminderEnabled: Bool
     var appVersion: String
+    var autoQuitItems: [AutoQuitAppInfo]
     var appIdleTimeItems: [IdleTimeAppInfo]
+    var appMemoryLimitItems: [MemoryLimitAppInfo]
     var whitelistItems: [WhitelistAppInfo]
+    var newAutoQuitBundleID = ""
     var newIdleTimeBundleID = ""
+    var newMemoryLimitBundleID = ""
     var newWhitelistBundleID = ""
     var isResetConfirmationPresented = false
+    var blockedWhitelistedRuleBundleID: String?
 }

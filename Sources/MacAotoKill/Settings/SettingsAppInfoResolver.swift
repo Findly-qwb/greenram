@@ -2,17 +2,32 @@ import AppKit
 import MacAotoKillCore
 import UniformTypeIdentifiers
 
+private protocol AppInfoDisplayable {
+    var bundleID: String { get }
+    var displayName: String { get }
+}
+
+extension AutoQuitAppInfo: AppInfoDisplayable {}
+extension IdleTimeAppInfo: AppInfoDisplayable {}
+extension MemoryLimitAppInfo: AppInfoDisplayable {}
+
 enum SettingsAppInfoResolver {
+    static func makeAutoQuitItems(from bundleIDs: [String], store: WhitelistStore) -> [AutoQuitAppInfo] {
+        bundleIDs
+            .map { makeAutoQuitItem(bundleID: $0, store: store) }
+            .sorted(by: sortByDisplayNameThenBundleID)
+    }
+
     static func makeIdleTimeItems(from bundleIDs: [String], store: WhitelistStore) -> [IdleTimeAppInfo] {
         bundleIDs
             .map { makeIdleTimeItem(bundleID: $0, store: store) }
-            .sorted { lhs, rhs in
-                let nameOrder = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
-                if nameOrder == .orderedSame {
-                    return lhs.bundleID.localizedCaseInsensitiveCompare(rhs.bundleID) == .orderedAscending
-                }
-                return nameOrder == .orderedAscending
-            }
+            .sorted(by: sortByDisplayNameThenBundleID)
+    }
+
+    static func makeMemoryLimitItems(from bundleIDs: [String], store: WhitelistStore) -> [MemoryLimitAppInfo] {
+        bundleIDs
+            .map { makeMemoryLimitItem(bundleID: $0, store: store) }
+            .sorted(by: sortByDisplayNameThenBundleID)
     }
 
     static func makeWhitelistItems(from bundleIDs: [String], store: WhitelistStore) -> [WhitelistAppInfo] {
@@ -40,6 +55,15 @@ enum SettingsAppInfoResolver {
         return standardizedURL
     }
 
+    private static func makeAutoQuitItem(bundleID: String, store: WhitelistStore) -> AutoQuitAppInfo {
+        let appInfo = makeAppDisplayInfo(bundleID: bundleID, store: store)
+        return AutoQuitAppInfo(
+            bundleID: appInfo.bundleID,
+            displayName: appInfo.displayName,
+            icon: appInfo.icon
+        )
+    }
+
     private static func makeIdleTimeItem(bundleID: String, store: WhitelistStore) -> IdleTimeAppInfo {
         let appInfo = makeAppDisplayInfo(bundleID: bundleID, store: store)
         return IdleTimeAppInfo(
@@ -47,6 +71,23 @@ enum SettingsAppInfoResolver {
             displayName: appInfo.displayName,
             icon: appInfo.icon
         )
+    }
+
+    private static func makeMemoryLimitItem(bundleID: String, store: WhitelistStore) -> MemoryLimitAppInfo {
+        let appInfo = makeAppDisplayInfo(bundleID: bundleID, store: store)
+        return MemoryLimitAppInfo(
+            bundleID: appInfo.bundleID,
+            displayName: appInfo.displayName,
+            icon: appInfo.icon
+        )
+    }
+
+    private static func sortByDisplayNameThenBundleID<T: AppInfoDisplayable>(_ lhs: T, _ rhs: T) -> Bool {
+        let nameOrder = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
+        if nameOrder == .orderedSame {
+            return lhs.bundleID.localizedCaseInsensitiveCompare(rhs.bundleID) == .orderedAscending
+        }
+        return nameOrder == .orderedAscending
     }
 
     private static func makeWhitelistItem(bundleID: String, store: WhitelistStore) -> WhitelistAppInfo {
