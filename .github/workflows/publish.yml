@@ -17,12 +17,12 @@ jobs:
       - name: Show Swift version
         run: swift --version
 
-      - name: Resolve dependencies
-        run: swift package resolve
+      - name: Resolve and fetch dependencies
+        run: swift package resolve --verbose
 
       - name: Build Universal 2
         run: |
-          swift build -c release --arch x86_64 --arch arm64
+          swift build -c release --arch x86_64 --arch arm64 --disable-sandbox
           BIN_PATH=$(swift build -c release --arch x86_64 --arch arm64 --show-bin-path 2>/dev/null)
           echo "BIN_PATH=$BIN_PATH" >> "$GITHUB_ENV"
 
