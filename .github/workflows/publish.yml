@@ -21,7 +21,10 @@ jobs:
         run: swift package resolve
 
       - name: Build Universal 2
-        run: swift build -c release --arch x86_64 --arch arm64
+        run: |
+          swift build -c release --arch x86_64 --arch arm64
+          BIN_PATH=$(swift build -c release --arch x86_64 --arch arm64 --show-bin-path 2>/dev/null)
+          echo "BIN_PATH=$BIN_PATH" >> "$GITHUB_ENV"
 
       - name: Create .app bundle
         run: |
@@ -30,7 +33,7 @@ jobs:
           mkdir -p "$BUNDLE_DIR/Contents/MacOS"
           mkdir -p "$BUNDLE_DIR/Contents/Resources"
 
-          cp .build/release/GreenRAM "$BUNDLE_DIR/Contents/MacOS/GreenRAM"
+          cp "$BIN_PATH/GreenRAM" "$BUNDLE_DIR/Contents/MacOS/GreenRAM"
           cp Packaging/GreenRAM.icns "$BUNDLE_DIR/Contents/Resources/"
           cp Packaging/GreenRAM-Info.plist "$BUNDLE_DIR/Contents/Info.plist"
 
