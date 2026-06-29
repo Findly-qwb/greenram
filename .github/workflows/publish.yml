@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build Universal 2 (Intel + Apple Silicon)
+    name: Build x86_64 (Intel)
     runs-on: macos-latest
 
     steps:
@@ -17,14 +17,13 @@ jobs:
       - name: Show Swift version
         run: swift --version
 
-      - name: Resolve and fetch dependencies
-        run: swift package resolve --verbose
+      - name: Resolve dependencies
+        run: swift package resolve
 
-      - name: Build Universal 2
+      - name: Build x86_64
         run: |
-          swift build -c release --arch x86_64 --arch arm64 --disable-sandbox
-          BIN_PATH=$(swift build -c release --arch x86_64 --arch arm64 --show-bin-path 2>/dev/null)
-          echo "BIN_PATH=$BIN_PATH" >> "$GITHUB_ENV"
+          swift build -c release --arch x86_64 --disable-sandbox
+          echo "BIN_PATH=$(swift build -c release --arch x86_64 --show-bin-path 2>/dev/null)" >> "$GITHUB_ENV"
 
       - name: Create .app bundle
         run: |
@@ -38,10 +37,8 @@ jobs:
           cp Packaging/GreenRAM-Info.plist "$BUNDLE_DIR/Contents/Info.plist"
 
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$BUNDLE_DIR/Contents/Info.plist"
-          # Assign build number from run attempt, or you can use run_number
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$BUNDLE_DIR/Contents/Info.plist"
 
-          # Code sign the app bundle (required for macOS to preserve code signature in zip)
           codesign --force --deep --sign - "$BUNDLE_DIR"
 
       - name: Package .app.zip
